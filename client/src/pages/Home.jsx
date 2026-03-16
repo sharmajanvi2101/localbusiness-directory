@@ -4,8 +4,11 @@ import {
     Search, MapPin, Star, ArrowRight, ChevronRight,
     ShieldCheck, TrendingUp, Users, Building2,
     Phone, LocateFixed, Loader2, Navigation2,
-    BadgeCheck, CheckCircle2
+    BadgeCheck, CheckCircle2, Heart, ArrowLeftRight, X
 } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateFavorites } from '../store/slices/authSlice';
+import userService from '../services/userService';
 import businessService from '../services/businessService';
 import metaService from '../services/metaService';
 import { toast } from 'react-hot-toast';
@@ -26,42 +29,101 @@ const QUERY_SUGGESTIONS = [
     'Mobile Repair', 'Barber Shop', 'Tailor', 'Restaurants', 'Doctor', 'Gym'
 ];
 
-const STATS = [
-    { label: 'Verified Businesses', value: '500+', icon: Building2 },
-    { label: 'Happy Customers', value: '10,000+', icon: Users },
-    { label: 'Cities Covered', value: '20+', icon: MapPin },
-    { label: 'Categories', value: '6', icon: TrendingUp },
-];
 
-const STEPS = [
-    { step: '01', title: 'Search for Services', desc: 'Enter what you need and your city to instantly find verified local businesses near you.', icon: Search, color: 'bg-orange-50 text-orange-600 border-orange-100' },
-    { step: '02', title: 'Compare & Choose', desc: 'Read ratings, reviews, and business details. Compare options and select the best fit for you.', icon: Star, color: 'bg-green-50 text-green-600 border-green-100' },
-    { step: '03', title: 'Connect Directly', desc: 'Call, get directions, or visit their website. No middleman — you connect directly with the business.', icon: Phone, color: 'bg-blue-50 text-blue-600 border-blue-100' },
-];
+
 
 
 // --- Sub-Components ---
-const BusinessCard = ({ biz, i }) => {
+const CountUp = ({ to, suffix = '', duration = 1.5 }) => {
+    const [count, setCount] = useState(0);
+    const nodeRef = useRef(null);
+    const [hasAnimated, setHasAnimated] = useState(false);
+
+    useEffect(() => {
+        const end = parseInt(to);
+        if (isNaN(end) || end === 0) {
+            setCount(0);
+            return;
+        }
+        
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) {
+                let start = 0;
+                let totalMiliseconds = duration * 1000;
+                let incrementTime = totalMiliseconds / end;
+
+                let timer = setInterval(() => {
+                    start += 1;
+                    if (start > end) {
+                        setCount(end);
+                        clearInterval(timer);
+                    } else {
+                        setCount(start);
+                    }
+                    if (start === end) clearInterval(timer);
+                }, Math.max(incrementTime, 10));
+                
+                observer.disconnect();
+            }
+        }, { threshold: 0.1 });
+
+        if (nodeRef.current) observer.observe(nodeRef.current);
+        return () => observer.disconnect();
+    }, [to, duration]);
+
+    return <span ref={nodeRef}>{count}{suffix}</span>;
+};
+
+const BusinessCard = ({ biz, i, isFavorite, onToggleFavorite, onAddToComparison }) => {
     const meta = CATEGORY_META[biz.category?.name] || { emoji: '📍', color: 'bg-gray-50 text-gray-600' };
+    
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: (i || 0) * 0.04 }} className="market-card group">
             <div className="relative h-44 overflow-hidden">
                 {biz.images?.[0] ? <img src={biz.images[0]} alt={biz.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> 
                 : <div className={`w-full h-full ${meta.color.split(' ')[0]} flex items-center justify-center`}><span className="text-6xl">{meta.emoji}</span></div>}
+                
                 <div className="absolute top-3 left-3 flex gap-2">
                     {biz.isVerified && <span className="badge-verified"><ShieldCheck size={10} /> Verified</span>}
                 </div>
-                <div className="absolute top-3 right-3"><span className="badge-category">{biz.category?.name}</span></div>
+
+                {/* Favorite Toggle Button */}
+                <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(biz._id); }}
+                    className={`absolute top-3 right-3 p-2 rounded-xl backdrop-blur-md transition-all z-10 ${isFavorite ? 'bg-rose-500 text-white' : 'bg-white/90 text-stone-400 hover:text-rose-500'}`}
+                >
+                    <Heart size={16} fill={isFavorite ? 'currentColor' : 'none'} />
+                </button>
+                <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddToComparison(biz._id); }}
+                    className="absolute top-3 right-14 p-2 rounded-xl backdrop-blur-md transition-all z-10 bg-white/90 text-stone-400 hover:text-primary-600"
+                    title="Add to Comparison"
+                >
+                    <ArrowLeftRight size={16} />
+                </button>
+
+                <div className="absolute bottom-3 left-3"><span className="badge-category">{biz.category?.name}</span></div>
             </div>
             <div className="p-5">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="font-bold text-stone-900 text-base leading-snug group-hover:text-primary-600 transition-colors line-clamp-1">{biz.name}</h3>
+                    <h3 className="font-bold text-stone-900 text-base leading-snug group-hover:text-primary-600 transition-colors line-clamp-1">
+                        <Link to={biz.slug ? `/b/${biz.slug}` : `/business/${biz._id}`}>{biz.name}</Link>
+                    </h3>
                     <div className="flex items-center gap-1 text-amber-500 shrink-0"><Star size={14} fill="currentColor" /><span className="text-xs font-bold text-stone-600">{biz.averageRating?.toFixed(1) || 'New'}</span></div>
                 </div>
                 <p className="text-stone-400 text-xs leading-relaxed line-clamp-2 mb-4">{biz.description}</p>
                 <div className="flex items-center justify-between pt-3 border-t border-orange-50">
                     <div className="flex items-center gap-1.5 text-stone-400 text-xs font-medium"><MapPin size={13} className="text-primary-500" />{biz.city?.name}</div>
-                    <Link to={`/business/${biz._id}`} className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1 hover:gap-2 transition-all">View <ChevronRight size={14} /></Link>
+                    <div className="flex items-center gap-3">
+                        <Link to={biz.slug ? `/b/${biz.slug}` : `/business/${biz._id}`} className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 group/btn">
+                            {biz.slug ? 'Digital Store' : 'View Details'} <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                        </Link>
+                        {biz.slug && (
+                            <Link to={`/business/${biz._id}?noredirect=true`} className="text-[10px] font-black text-stone-400 hover:text-primary-600 uppercase tracking-widest transition-colors border-l border-stone-200 ml-1 pl-3">
+                                Get Details
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
         </motion.div>
@@ -78,14 +140,18 @@ const SectionHeader = ({ title, subtitle, children }) => (
     </div>
 );
 
-const CategoryCard = ({ cat, userLocation }) => {
+const CategoryCard = ({ cat, userLocation, searchCity }) => {
     const meta = CATEGORY_META[cat.name] || { emoji: '📍', color: 'bg-gray-50 text-gray-600', border: 'border-gray-100' };
     const searchParams = new URLSearchParams();
     searchParams.set('category', cat.name);
+    
+    // Prioritize precise GPS if available, fallback to search city text
     if (userLocation) {
         if (userLocation.cityName) searchParams.set('city', userLocation.cityName);
         searchParams.set('lat', userLocation.lat);
         searchParams.set('lng', userLocation.lng);
+    } else if (searchCity) {
+        searchParams.set('city', searchCity);
     }
 
     return (
@@ -93,8 +159,8 @@ const CategoryCard = ({ cat, userLocation }) => {
             <Link to={`/search?${searchParams.toString()}`} className={`group relative flex flex-col items-center justify-center h-48 rounded-2xl border-2 ${meta.border} overflow-hidden hover:border-primary-400 hover:shadow-lg hover:shadow-orange-100 transition-all text-center`}>
                 {meta.image ? (
                     <div className="absolute inset-0 z-0">
-                        <img src={meta.image} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 opacity-30" />
-                        <div className={`absolute inset-0 ${meta.color.split(' ')[0]} opacity-70`} />
+                        <img src={meta.image} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-[0.15]" />
+                        <div className={`absolute inset-0 bg-white/40`} />
                     </div>
                 ) : <div className={`absolute inset-0 ${meta.color.split(' ')[0]}`} />}
                 <div className="relative z-10 flex flex-col items-center">
@@ -125,15 +191,77 @@ const Home = () => {
     const [categories, setCategories] = useState([]);
     const [cities, setCities] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [platformStats, setPlatformStats] = useState({
+        businesses: 0,
+        cities: 0,
+        categories: 0
+    });
     const [querySuggestions, setQuerySuggestions] = useState([]);
     const [citySuggestions, setCitySuggestions] = useState([]);
     const [showQuerySug, setShowQuerySug] = useState(false);
     const [showCitySug, setShowCitySug] = useState(false);
-    // Location detection
+    
+    // Location states
     const [locationLoading, setLocationLoading] = useState(false);
-    const [nearbyBusinesses, setNearbyBusinesses] = useState([]);
-    const [nearbyLoading, setNearbyLoading] = useState(false);
+    const [comparisonList, setComparisonList] = useState([]);
+
+    useEffect(() => {
+        const list = JSON.parse(localStorage.getItem('comparisonList') || '[]');
+        setComparisonList(list);
+    }, []);
+
     const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const { user } = useSelector(state => state.auth);
+
+    const handleToggleFavorite = async (bizId) => {
+        if (!user) {
+            toast.error('Please login to save favorites');
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const currentFavorites = user.favorites || [];
+            // Use some and toString to be safe with different ID formats
+            const isFav = currentFavorites.some(id => id.toString() === bizId);
+            const newFavorites = isFav 
+                ? currentFavorites.filter(id => id.toString() !== bizId)
+                : [...currentFavorites, bizId];
+            
+            // Optimistic update
+            dispatch(updateFavorites(newFavorites));
+            
+            const res = await userService.toggleFavorite(bizId);
+            toast.success(res.message, { icon: isFav ? '💔' : '❤️' });
+        } catch (error) {
+            // Rollback on error
+            if (user?.favorites) {
+                dispatch(updateFavorites(user.favorites));
+            }
+            toast.error(error?.message || 'Failed to update favorites');
+        }
+    };
+
+    const handleAddToComparison = (bizId) => {
+        const currentList = JSON.parse(localStorage.getItem('comparisonList') || '[]');
+        
+        let newList;
+        if (currentList.includes(bizId)) {
+            newList = currentList.filter(id => id !== bizId);
+            toast.success('Removed from comparison');
+        } else {
+            if (currentList.length >= 4) {
+                toast.error('Comparison list is full (max 4)');
+                return;
+            }
+            newList = [...currentList, bizId];
+            toast.success('Added to comparison!', { icon: '📊' });
+        }
+
+        localStorage.setItem('comparisonList', JSON.stringify(newList));
+        setComparisonList(newList);
+    };
 
 
     // Persist location whenever it changes
@@ -146,22 +274,30 @@ const Home = () => {
         }
     }, [userLocation]);
 
+    // Re-fetch nearby businesses and stats when location is detected
+    useEffect(() => {
+        if (userLocation && cities.length > 0) {
+            fetchNearby(userLocation);
+        }
+    }, [userLocation, cities]);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [bizData, catData, cityData] = await Promise.all([
+                const [bizData, catData, cityData, statsData] = await Promise.all([
                     businessService.getBusinesses({ isVerified: true, limit: 8 }),
                     metaService.getCategories(),
                     metaService.getCities(),
+                    metaService.getStats()
                 ]);
                 const confirmedCities = cityData || [];
                 setBusinesses(bizData.data || []);
                 setCategories(catData || []);
                 setCities(confirmedCities);
-
-                // If we have a location (from localStorage via state init), fetch its businesses
-                if (userLocation) {
-                    fetchNearby(userLocation, confirmedCities);
+                
+                if (statsData) {
+                    console.log(`📊 Dynamic Stats Loaded: ${statsData.businesses} Businesses across ${statsData.cities} Cities`);
+                    setPlatformStats(statsData);
                 }
             } catch (e) {
                 toast.error('Failed to load data');
@@ -174,44 +310,48 @@ const Home = () => {
 
     const fetchNearby = async (loc, currentCities = []) => {
         if (!loc) return;
-        setNearbyLoading(true);
+        setLoading(true); // Reuse main loading
         try {
             const cityName = loc.cityName || '';
             const citiesToSearch = currentCities.length > 0 ? currentCities : cities;
             const matchedCity = citiesToSearch.find(c => c.name.toLowerCase() === cityName.toLowerCase());
             
-            let query = { isVerified: true };
             if (matchedCity) {
-                query.city = matchedCity._id;
+                // STRICT CITY FILTER using ID
+                const [res, cityStats] = await Promise.all([
+                    businessService.getBusinesses({ isVerified: true, city: matchedCity._id, limit: 8 }),
+                    metaService.getStats({ city: matchedCity._id })
+                ]);
+                setBusinesses(res.data || []);
+                if (cityStats) setPlatformStats(cityStats);
+            } else if (cityName) {
+                // FALLBACK to City Name text for stats + Nearby radius for businesses
+                const [nearbyRes, cityStats] = await Promise.all([
+                    businessService.getNearbyBusinesses(loc.lat, loc.lng, 15),
+                    metaService.getStats({ city: cityName })
+                ]);
+                setBusinesses(nearbyRes.data?.slice(0, 8) || []);
+                if (cityStats) setPlatformStats(cityStats);
             } else {
-                // If city name is not in our City model, use coordinate search (15km radius)
-                const nearby = await businessService.getNearbyBusinesses(loc.lat, loc.lng, 15);
-                setNearbyBusinesses(nearby.data || []);
-                setNearbyLoading(false);
-                return;
-            }
-            
-            const res = await businessService.getBusinesses(query);
-            
-            // If strictly filtered city search is empty, fallback to coordinate search
-            if ((res.data || []).length === 0) {
-                const nearby = await businessService.getNearbyBusinesses(loc.lat, loc.lng, 15);
-                setNearbyBusinesses(nearby.data || []);
-            } else {
-                setNearbyBusinesses(res.data || []);
+                // Absolute fallback to global
+                const [globalRes, globalStats] = await Promise.all([
+                    businessService.getBusinesses({ isVerified: true, limit: 8 }),
+                    metaService.getStats()
+                ]);
+                setBusinesses(globalRes.data || []);
+                setPlatformStats(globalStats);
             }
         } catch (_) {
-            const nearby = await businessService.getNearbyBusinesses(loc.lat, loc.lng, 15);
-            setNearbyBusinesses(nearby.data || []);
+            setBusinesses([]);
         } finally {
-            setNearbyLoading(false);
+            setLoading(false);
         }
     };
 
     // ── Auto-detect location ──────────────────────────────────────────────
-    const detectLocation = (explicitCities = []) => {
+    const detectLocation = (explicitCities = [], isManual = true) => {
         if (!navigator.geolocation) {
-            toast.error('Geolocation is not supported by your browser');
+            if (isManual) toast.error('Geolocation is not supported by your browser');
             return;
         }
         setLocationLoading(true);
@@ -235,20 +375,23 @@ const Home = () => {
                     
                     // Trigger nearby fetch immediately
                     fetchNearby(locObj, explicitCities.length > 0 ? explicitCities : cities);
-                    toast.success(`📍 Location detected: ${cityName || 'Your area'}`);
+                    if (isManual) {
+                        toast.success(`📍 Location detected: ${cityName || 'Your area'}`);
+                    }
                 } catch (err) {
-                    toast.error('Could not detect city name');
+                    if (isManual) toast.error('Could not detect city name');
                 } finally {
                     setLocationLoading(false);
                 }
             },
             (err) => {
                 setLocationLoading(false);
-                if (err.code === err.PERMISSION_DENIED) {
-                    // If user denied, we don't toast on auto-detect to be less annoying
-                    // only toast if they clicked the button manually (will need a flag)
-                } else {
-                    toast.error('Could not get your location. Try again.');
+                if (isManual) {
+                    if (err.code === err.PERMISSION_DENIED) {
+                        toast.error('Location permission denied. Please allow to find nearby businesses.');
+                    } else {
+                        toast.error('Could not get your location. Try again.');
+                    }
                 }
             },
             { timeout: 10000, maximumAge: 60000 }
@@ -275,19 +418,71 @@ const Home = () => {
         }
     };
 
+    // Fetch businesses when city input changes (debounced-ish via state dependency)
+    useEffect(() => {
+        const fetchByCity = async () => {
+            if (!searchCity || userLocation) return;
+            setLoading(true);
+            try {
+                // Find city object to get ID
+                const matchedCity = cities.find(c => c.name.toLowerCase() === searchCity.toLowerCase());
+                const params = { isVerified: true, limit: 8 };
+                if (matchedCity) {
+                    params.city = matchedCity._id;
+                    const cityStats = await metaService.getStats({ city: matchedCity._id });
+                    if (cityStats) setPlatformStats(cityStats);
+                } else {
+                    params.search = searchCity; // fallback search if city ID not found
+                    const totalStats = await metaService.getStats();
+                    setPlatformStats(totalStats);
+                }
+
+                const res = await businessService.getBusinesses(params);
+                setBusinesses(res.data || []);
+            } catch (error) {
+                console.error('Fetch error:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const timer = setTimeout(fetchByCity, 500);
+        return () => clearTimeout(timer);
+    }, [searchCity, cities, userLocation]);
+
     const handleCityChange = (val) => {
         setSearchCity(val);
+        // If user types manually, we clear the GPS "near me" state
+        if (val && userLocation) setUserLocation(null);
+        
         if (val.trim()) {
             const f = cities.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
             setCitySuggestions(f);
             setShowCitySug(f.length > 0);
         } else {
             setShowCitySug(false);
+            // If cleared, restore original featured businesses and global stats
+            if (!val) {
+                Promise.all([
+                    businessService.getBusinesses({ isVerified: true, limit: 8 }),
+                    metaService.getStats()
+                ]).then(([res, stats]) => {
+                    setBusinesses(res.data || []);
+                    if (stats) setPlatformStats(stats);
+                });
+            }
         }
     };
 
     return (
-        <div className="min-h-screen" style={{ background: '#fffdf9' }}>
+        <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="min-h-screen pb-32" 
+            style={{ background: '#fffdf9' }}
+        >
             {/* =========================================
                 HERO SECTION — Marketplace Style
             ========================================= */}
@@ -341,7 +536,14 @@ const Home = () => {
                                         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                                             className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-orange-100 z-50 overflow-hidden">
                                             {querySuggestions.map(s => (
-                                                <button key={s} type="button" onMouseDown={() => { setSearchQuery(s); setShowQuerySug(false); }}
+                                                <button key={s} type="button" onMouseDown={() => { 
+                                                    setSearchQuery(s); 
+                                                    setShowQuerySug(false);
+                                                    const params = new URLSearchParams();
+                                                    params.set('search', s);
+                                                    if (searchCity) params.set('city', searchCity);
+                                                    navigate(`/search?${params.toString()}`);
+                                                }}
                                                     className="w-full text-left px-4 py-3 hover:bg-orange-50 text-stone-700 font-medium text-sm flex items-center gap-2">
                                                     <Search size={14} className="text-orange-400" /> {s}
                                                 </button>
@@ -368,7 +570,7 @@ const Home = () => {
                                 {/* GPS detect button inside city input */}
                                 <button
                                     type="button"
-                                    onClick={detectLocation}
+                                    onClick={() => detectLocation(cities, true)}
                                     disabled={locationLoading}
                                     title="Auto-detect my location"
                                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 transition-all disabled:opacity-50"
@@ -401,153 +603,154 @@ const Home = () => {
                         {/* Quick tags */}
                         <div className="flex flex-wrap justify-center gap-2 mt-6">
                             {QUERY_SUGGESTIONS.map(s => (
-                                <button key={s} onClick={() => navigate(`/search?search=${s}`)}
+                                <button key={s} onClick={() => {
+                                    const params = new URLSearchParams();
+                                    params.set('search', s);
+                                    if (searchCity) params.set('city', searchCity);
+                                    navigate(`/search?${params.toString()}`);
+                                }}
                                     className="px-4 py-1.5 bg-white/20 border border-white/30 text-white text-xs font-semibold rounded-full hover:bg-white/30 transition-all">
                                     {s}
                                 </button>
                             ))}
                         </div>
+
                     </div>
                 </div>
             </section>
 
             <section className="trust-bar">
                 <div className="container mx-auto px-4 flex flex-wrap justify-center md:justify-around">
-                    {STATS.map(({ label, value, icon: Icon }) => (
-                        <div key={label} className="stat-item text-center py-6">
-                            <Icon size={26} className="text-primary-500 mx-auto mb-2" />
-                            <div className="text-2xl font-black text-stone-900">{value}</div>
-                            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mt-0.5">{label}</div>
+                    {[
+                        { label: 'Verified Businesses', value: platformStats.businesses, suffix: '+', icon: Building2 },
+                        { label: 'Cities Covered', value: platformStats.cities, suffix: '+', icon: MapPin },
+                        { label: 'Categories', value: platformStats.categories, suffix: '', icon: TrendingUp },
+                    ].map(({ label, value, suffix, icon: Icon }) => (
+                        <div key={label} className="stat-item text-center py-6 group cursor-default">
+                            <Icon size={26} className="text-primary-500 mx-auto mb-2 group-hover:scale-110 group-hover:text-primary-600 transition-all duration-300" />
+                            <div className="text-2xl font-black text-stone-900">
+                                <CountUp to={value} suffix={suffix} />
+                            </div>
+                            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider mt-0.5 group-hover:text-stone-600 transition-colors">{label}</div>
                         </div>
                     ))}
                 </div>
             </section>
 
-            {!nearbyLoading && (
+            {!loading && (
                 <section className="container mx-auto px-4 py-16">
                     <SectionHeader title="Browse by Category" subtitle="Find exactly what you're looking for">
                         <div className="flex items-center gap-6">
-                            {userLocation && (
-                                <button onClick={() => { setUserLocation(null); setNearbyBusinesses([]); setSearchCity(''); }}
+                            {(userLocation || searchCity) && (
+                                <button onClick={() => { 
+                                    setUserLocation(null); 
+                                    setSearchCity('');
+                                    setLoading(true);
+                                    Promise.all([
+                                        metaService.getStats(),
+                                        businessService.getBusinesses({ isVerified: true, limit: 8 })
+                                    ]).then(([stats, res]) => {
+                                        setPlatformStats(stats);
+                                        setBusinesses(res.data || []);
+                                        setLoading(false);
+                                    });
+                                }}
                                     className="text-stone-400 hover:text-stone-600 font-bold text-xs uppercase tracking-widest border border-stone-200 px-3 py-1.5 rounded-xl transition-all">Clear Location</button>
                             )}
-                            <Link to={`/search${userLocation ? `?city=${encodeURIComponent(userLocation.cityName || '')}&lat=${userLocation.lat}&lng=${userLocation.lng}` : ''}`} className="text-primary-600 font-semibold text-sm flex items-center gap-1 hover:gap-2 transition-all">
+                            <Link to={`/search?${new URLSearchParams({
+                                ...(searchCity ? { city: searchCity } : {}),
+                                ...(userLocation?.lat ? { lat: userLocation.lat, lng: userLocation.lng } : {})
+                            }).toString()}`} className="text-primary-600 font-semibold text-sm flex items-center gap-1 hover:gap-2 transition-all">
                                 View all <ChevronRight size={18} />
                             </Link>
                         </div>
                     </SectionHeader>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                        {categories.map(cat => <CategoryCard key={cat._id} cat={cat} userLocation={userLocation} />)}
-                    </div>
-                </section>
-            )}
-
-            {/* =========================================
-                NEARBY BUSINESSES (shown after location detect)
-            ========================================= */}
-            <AnimatePresence>
-                {(userLocation || nearbyLoading || locationLoading) && (
-                    <motion.section
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                        style={{ background: 'linear-gradient(135deg, #fff7ed, #fffdf9)' }}
-                    >
-                        <div className="container mx-auto px-4 py-16">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">
-                                            <Navigation2 size={11} className="animate-pulse" />
-                                            {userLocation?.cityName ? `Near ${userLocation.cityName}` : 'Detecting location...'}
-                                        </span>
-                                    </div>
-                                    <h2 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight">
-                                        Businesses Near You
-                                    </h2>
-                                    <p className="text-stone-400 font-medium text-sm mt-1">Within 20 km of your current location</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    {/* Clear Location button removed from here as it is now in Category section */}
-                                    {userLocation && (
-                                        <Link
-                                            to={`/search?city=${encodeURIComponent(userLocation.cityName || '')}${userLocation.lat ? `&lat=${userLocation.lat}&lng=${userLocation.lng}` : ''}`}
-                                            className="text-primary-600 font-semibold text-sm flex items-center gap-1 hover:gap-2 transition-all self-start"
-                                        >
-                                            View all <ChevronRight size={18} />
-                                        </Link>
-                                    )}
-                                </div>
-                            </div>
-
-                            {nearbyLoading ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                                    {[1, 2, 3, 4].map(n => (
-                                        <div key={n} className="h-64 rounded-2xl bg-orange-100/60 animate-pulse" />
-                                    ))}
-                                </div>
-                            ) : nearbyBusinesses.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                                    {nearbyBusinesses.slice(0, 8).map((biz, i) => <BusinessCard key={biz._id} biz={biz} i={i} />)}
-                                </div>
-                            ) : (
-                                <div className="text-center py-16">
-                                    <div className="text-5xl mb-4">📍</div>
-                                    <p className="text-stone-500 font-semibold">No businesses found within 20 km of your location.</p>
-                                    <p className="text-stone-400 text-sm mt-1">Try searching by city name above.</p>
-                                </div>
-                            )}
-                        </div>
-                    </motion.section>
-                )}
-            </AnimatePresence>
-
-            {!userLocation && !nearbyLoading && (
-                <section className="py-16" style={{ background: '#fff7ed' }}>
-                    <div className="container mx-auto px-4">
-                        <SectionHeader title="Featured Businesses" subtitle="Top-rated & verified in your area">
-                            <Link to={`/search${userLocation ? `?city=${encodeURIComponent(userLocation.cityName || '')}&lat=${userLocation.lat}&lng=${userLocation.lng}` : ''}`} className="btn btn-primary text-sm shine-effect self-start">
-                                Browse All <ArrowRight size={16} />
-                            </Link>
-                        </SectionHeader>
-
-                        {loading ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <div key={n} className="h-72 rounded-2xl bg-orange-50 animate-pulse" />)}
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {businesses.map((biz, i) => <BusinessCard key={biz._id} biz={biz} i={i} />)}
-                            </div>
-                        )}
-                    </div>
-                </section>
-            )}
-
-            
-            {!nearbyLoading && (
-                <section className="container mx-auto px-4 py-20">
-                    <SectionHeader title="How BizDirect Works" subtitle="Simple, fast, and trusted" />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {STEPS.map(({ step, title, desc, icon: Icon, color }) => (
-                            <motion.div key={step} whileHover={{ y: -4 }} className="p-8 rounded-2xl bg-white border border-stone-100 shadow-sm group hover:shadow-xl hover:shadow-orange-50 transition-all">
-                                <div className={`w-14 h-14 rounded-2xl border-2 ${color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}><Icon size={24} /></div>
-                                <div className="text-xs font-black text-stone-300 uppercase tracking-[0.2em] mb-3">STEP {step}</div>
-                                <h3 className="text-lg font-black text-stone-900 mb-3">{title}</h3>
-                                <p className="text-stone-400 text-sm leading-relaxed">{desc}</p>
-                            </motion.div>
+                        {categories.map(cat => (
+                            <CategoryCard 
+                                key={cat._id} 
+                                cat={cat} 
+                                userLocation={userLocation} 
+                                searchCity={searchCity} 
+                            />
                         ))}
                     </div>
                 </section>
             )}
 
             {/* =========================================
-                PALANPUR SPOTLIGHT
+                UNIFIED EXPLORER SECTION
             ========================================= */}
-            {!nearbyLoading && (
-                <section className="py-16 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #fff7ed 0%, #fffdf9 100%)' }}>
+            <section className="py-20 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #fffcf9, #fff7ed)' }}>
+                <div className="absolute top-0 right-0 w-96 h-96 bg-orange-100/30 rounded-full blur-3xl -z-10" />
+                <div className="container mx-auto px-4">
+                    <SectionHeader 
+                        title={
+                            searchCity 
+                                ? `Verified Businesses in ${searchCity}` 
+                                : userLocation 
+                                    ? "Businesses Near You" 
+                                    : "Featured Businesses"
+                        } 
+                        subtitle={
+                            searchCity 
+                                ? `Showing ${platformStats.businesses} verified places found in ${searchCity}` 
+                                : userLocation?.cityName
+                                    ? `Showing ${platformStats.businesses} verified places in ${userLocation.cityName}`
+                                    : "Top-rated & verified listings across all cities"
+                        }
+                    >
+                        <div className="flex items-center gap-4">
+                            {(userLocation || searchCity) && (
+                                <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                                    <ShieldCheck size={12} /> Live city filter active
+                                </div>
+                            )}
+                            <Link to={`/search?${new URLSearchParams({
+                                ...(searchCity ? { city: searchCity } : {}),
+                                ...(userLocation?.lat ? { lat: userLocation.lat, lng: userLocation.lng } : {})
+                            }).toString()}`} className="btn btn-primary text-xs shine-effect self-start py-2.5">
+                                Browse All in {searchCity || userLocation?.cityName || 'India'} <ArrowRight size={14} />
+                            </Link>
+                        </div>
+                    </SectionHeader>
+
+                    {loading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <div key={n} className="h-72 rounded-2xl bg-orange-50 animate-pulse" />)}
+                        </div>
+                    ) : businesses.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {businesses.slice(0, 8).map((biz, i) => (
+                                <BusinessCard 
+                                    key={biz._id} 
+                                    biz={biz} 
+                                    i={i} 
+                                    isFavorite={user?.favorites?.includes(biz._id)}
+                                    onToggleFavorite={handleToggleFavorite}
+                                    onAddToComparison={handleAddToComparison}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-orange-100">
+                            <div className="text-5xl mb-4">🏠</div>
+                            <h3 className="text-xl font-bold text-stone-900 mb-2">No businesses found here yet</h3>
+                            <p className="text-stone-400 max-w-sm mx-auto">We're expanding rapidly! Try searching for a different city or browse all categories.</p>
+                            <button onClick={() => { setSearchCity(''); setUserLocation(null); }} className="mt-6 text-primary-600 font-bold text-sm underline underline-offset-4 tracking-tight hover:text-primary-700 transition-colors">Clear all filters & show featured</button>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            
+
+
+            {/* =========================================
+                CITY SPOTLIGHT
+            ========================================= */}
+            <section className="py-16 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #fff7ed 0%, #fffdf9 100%)' }}>
                     <div className="container mx-auto px-4">
                         <div className="flex flex-col lg:flex-row items-center gap-12">
                             <div className="flex-1">
@@ -556,33 +759,31 @@ const Home = () => {
                                 </div>
                                 <h2 className="text-4xl md:text-5xl font-black text-stone-900 mb-5 leading-tight">
                                     Discover Businesses<br />
-                                    <span className="premium-gradient-text">in Palanpur</span>
+                                    <span className="premium-gradient-text">in {searchCity || userLocation?.cityName || 'Palanpur'}</span>
                                 </h2>
                                 <p className="text-stone-500 text-lg leading-relaxed mb-8 max-w-lg">
-                                    Explore 13+ verified restaurants, hospitals, electricians, gyms, and more across Banaskantha's thriving city of Palanpur.
+                                    Explore {platformStats.businesses}+ verified restaurants, hospitals, electricians, gyms, and more in {searchCity || userLocation?.cityName || 'Palanpur'}.
                                 </p>
                                 <div className="flex flex-wrap gap-3 mb-8">
                                     {['Restaurants', 'Doctor', 'Gym', 'Electrician'].map(cat => (
-                                        <Link key={cat} to={`/search?city=Palanpur&category=${cat}`}
+                                        <Link key={cat} to={`/search?city=${encodeURIComponent(searchCity || userLocation?.cityName || 'Palanpur')}&category=${cat}`}
                                             className="category-chip">
                                             {CATEGORY_META[cat]?.emoji} {cat}
                                         </Link>
                                     ))}
                                 </div>
-                                <Link to="/search?city=Palanpur" className="btn btn-primary shine-effect">
-                                    Explore Palanpur <ArrowRight size={18} />
-                                </Link>
+
                             </div>
 
                             <div className="flex-1 relative">
                                 <div className="grid grid-cols-2 gap-4">
                                     {[
-                                        { name: 'Palanpur Rasoi', cat: 'Restaurant', rating: 4.8, emoji: '🍽️', img: RESTAURANT_IMG },
+                                        { name: 'Palanpur Rasoi', cat: 'Restaurants', rating: 4.8, emoji: '🍽️', img: RESTAURANT_IMG },
                                         { name: 'Arogya Hospital', cat: 'Doctor', rating: 4.8, emoji: '🏥', img: DOCTOR_IMG },
                                         { name: 'PowerZone Fitness', cat: 'Gym', rating: 4.7, emoji: '💪', img: GYM_IMG },
                                         { name: 'Bhavani Electricals', cat: 'Electrician', rating: 4.7, emoji: '⚡', img: ELECTRICIAN_IMG },
                                     ].map(({ name, cat, rating, emoji, img }) => (
-                                        <div key={name} className="market-card group overflow-hidden">
+                                        <Link key={name} to={`/search?city=${encodeURIComponent(searchCity || userLocation?.cityName || 'Palanpur')}&search=${encodeURIComponent(name)}`} className="market-card group overflow-hidden block">
                                             <div className="h-24 relative overflow-hidden">
                                                 <img src={img} alt={name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                 <div className="absolute inset-0 bg-black/20" />
@@ -596,7 +797,7 @@ const Home = () => {
                                                     <span className="text-xs font-bold text-stone-600">{rating}</span>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </Link>
                                     ))}
                                 </div>
                                 {/* Palanpur main background image */}
@@ -607,13 +808,10 @@ const Home = () => {
                         </div>
                     </div>
                 </section>
-            )}
-
             {/* =========================================
                 TRUST SECTION
             ========================================= */}
-            {!nearbyLoading && (
-                <section className="container mx-auto px-4 py-16">
+            <section className="container mx-auto px-4 py-16">
                     <div className="bg-white rounded-3xl border border-orange-100 p-8 md:p-14 shadow-sm">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                             <div>
@@ -621,11 +819,11 @@ const Home = () => {
                                     <ShieldCheck size={14} /> 100% Verified
                                 </div>
                                 <h2 className="text-3xl md:text-4xl font-black text-stone-900 mb-5 leading-tight">
-                                    Why Businesses &amp; Customers<br />Trust BizDirect
+                                    Trusted by {platformStats.businesses}+ Businesses<br />Across {platformStats.cities}+ Cities
                                 </h2>
                                 <div className="space-y-4">
                                     {[
-                                        'Every business is manually reviewed before listing',
+                                        `Over ${platformStats.businesses}+ businesses manually reviewed`,
                                         'Real ratings from real customers — no fake reviews',
                                         'Direct contact — no commissions or middlemen',
                                         'Local businesses, supporting local communities',
@@ -639,13 +837,14 @@ const Home = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 {[
-                                    { label: 'Verified Listings', value: '500+', bg: 'bg-orange-50', text: 'text-orange-700' },
-                                    { label: 'Happy Customers', value: '10K+', bg: 'bg-green-50', text: 'text-green-700' },
-                                    { label: 'Cities Covered', value: '20+', bg: 'bg-blue-50', text: 'text-blue-700' },
-                                    { label: 'Average Rating', value: '4.8★', bg: 'bg-amber-50', text: 'text-amber-700' },
-                                ].map(({ label, value, bg, text }) => (
-                                    <div key={label} className={`${bg} rounded-2xl p-6 text-center`}>
-                                        <div className={`text-3xl font-black ${text} mb-1`}>{value}</div>
+                                    { label: 'Verified Businesses', value: platformStats.businesses, suffix: '+', bg: 'bg-orange-50', text: 'text-orange-700' },
+                                    { label: 'Cities Covered', value: platformStats.cities, suffix: '+', bg: 'bg-blue-50', text: 'text-blue-700' },
+                                    { label: 'Total Categories', value: platformStats.categories, suffix: '', bg: 'bg-amber-50', text: 'text-amber-700' },
+                                ].map(({ label, value, suffix, bg, text }) => (
+                                    <div key={label} className={`${bg} rounded-2xl p-6 text-center shadow-sm hover:shadow-md transition-shadow`}>
+                                        <div className={`text-3xl font-black ${text} mb-1`}>
+                                            <CountUp to={value} suffix={suffix} />
+                                        </div>
                                         <div className="text-xs text-stone-500 font-semibold uppercase tracking-wider">{label}</div>
                                     </div>
                                 ))}
@@ -653,7 +852,6 @@ const Home = () => {
                         </div>
                     </div>
                 </section>
-            )}
 
             {/* =========================================
                 CTA — LIST YOUR BUSINESS
@@ -665,22 +863,47 @@ const Home = () => {
                             List Your Business<br />
                             <span className="text-yellow-300">Reach More Customers</span>
                         </h2>
-                        <p className="text-orange-100 text-lg mb-10 font-medium">
-                            Join 500+ verified businesses and start getting discovered today. Free to list.
+                        <p className="text-orange-100 text-lg font-medium">
+                            Join {platformStats.businesses}+ verified businesses and start getting discovered today. Free to list.
                         </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Link to="/register" className="px-10 py-4 bg-white text-primary-600 rounded-xl font-black hover:bg-orange-50 transition-all shadow-xl shine-effect text-base">
-                                Get Started — It's Free
-                            </Link>
-                            <Link to="/search" className="px-10 py-4 border-2 border-white/40 text-white rounded-xl font-bold hover:bg-white/10 transition-all text-base">
-                                Explore Businesses
-                            </Link>
-                        </div>
                     </div>
                 </div>
             </section>
 
-        </div>
+            {/* Comparison Floating Bar */}
+            <AnimatePresence>
+                {comparisonList.length > 0 && (
+                    <motion.div 
+                        initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[80] w-[calc(100%-2rem)] max-w-2xl bg-stone-900 border border-white/10 p-5 rounded-[2.5rem] shadow-2xl backdrop-blur-xl"
+                    >
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                            <div className="flex items-center gap-6">
+                                <div className="flex -space-x-3">
+                                    {comparisonList.slice(0, 4).map(id => (
+                                        <div key={id} className="w-10 h-10 rounded-full border-2 border-stone-800 bg-stone-700 flex items-center justify-center text-[10px] text-white font-bold">
+                                            {id.slice(-2).toUpperCase()}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div>
+                                    <p className="text-white text-xs font-black uppercase tracking-widest">{comparisonList.length} Selected</p>
+                                    <p className="text-stone-400 text-[10px] font-medium hidden sm:block">Compare them side-by-side</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => { localStorage.setItem('comparisonList', JSON.stringify([])); setComparisonList([]); }} 
+                                    className="text-stone-400 hover:text-white px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors">Clear</button>
+                                <Link to="/compare" className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg ${comparisonList.length >= 2 ? 'bg-primary-600 text-white shadow-primary-900/20 hover:scale-105 active:scale-95' : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50'}`}>
+                                    {comparisonList.length < 2 ? `Add ${2 - comparisonList.length} More` : 'Compare Now'}
+                                </Link>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 };
 

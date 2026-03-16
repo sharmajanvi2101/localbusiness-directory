@@ -1,22 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
     MapPin, Phone, Globe, Mail, Clock, Star,
     ShieldCheck, Share2, Heart, MessageSquare,
-    ChevronRight, Info, Briefcase, Navigation, ExternalLink, Utensils, ShoppingBag, Zap, Droplets, Stethoscope, Dumbbell
+    ChevronRight, Info, Briefcase, Navigation, ExternalLink, Utensils, ShoppingBag, Zap, Droplets, Stethoscope, Dumbbell,
+    Leaf, Award, Tag, CalendarCheck, Check, ArrowLeftRight
 } from 'lucide-react';
 import businessService from '../services/businessService';
 import { toast } from 'react-hot-toast';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CATEGORY_META } from '../constants/categoryMeta';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateFavorites } from '../store/slices/authSlice';
+import userService from '../services/userService';
+import reviewService from '../services/reviewService';
 
 
 const BusinessDetail = () => {
     const { id } = useParams();
+    const [searchParams] = useSearchParams();
+    const noredirect = searchParams.get('noredirect') === 'true';
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const [business, setBusiness] = useState(null);
+    const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [isFavourited, setIsFavourited] = useState(false);
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+    const [submittingReview, setSubmittingReview] = useState(false);
+    const { user } = useSelector(state => state.auth);
+    const isFavourited = user?.favorites?.includes(id);
+    const [comparisonList, setComparisonList] = useState([]);
+
+    useEffect(() => {
+        const list = JSON.parse(localStorage.getItem('comparisonList') || '[]');
+        setComparisonList(list);
+    }, []);
 
     const getDirectionsUrl = (biz) => {
         if (biz.location?.coordinates?.length === 2) {
@@ -43,7 +63,20 @@ const BusinessDetail = () => {
         const fetchBusiness = async () => {
             try {
                 const data = await businessService.getBusinessById(id);
+                
+                // If this business has a mini-website slug, auto-redirect to it for a premium experience
+                // Skip redirect if noredirect=true is passed (used by "Get Details" links)
+                if (data.slug && !noredirect) {
+                    navigate(`/b/${data.slug}`, { replace: true });
+                    return;
+                }
+
                 setBusiness(data);
+                // Fetch reviews
+                const reviewsData = await reviewService.getBusinessReviews(id);
+                setReviews(reviewsData.data || []);
+                // Track view
+                businessService.trackView(id).catch(err => console.error('View tracking failed', err));
             } catch (error) {
                 toast.error("Business not found");
                 navigate('/search');
@@ -53,6 +86,88 @@ const BusinessDetail = () => {
         };
         fetchBusiness();
     }, [id, navigate]);
+
+    const handleToggleFavorite = async () => {
+        if (!user) {
+            toast.error('Please login to save favorites');
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const currentFavorites = user.favorites || [];
+            const isFav = currentFavorites.some(fid => fid.toString() === id);
+            const newFavorites = isFav 
+                ? currentFavorites.filter(fid => fid.toString() !== id)
+                : [...currentFavorites, id];
+            
+            // Optimistic update
+            dispatch(updateFavorites(newFavorites));
+            
+            const res = await userService.toggleFavorite(id);
+            toast.success(res.message, { icon: isFav ? '💔' : '❤️' });
+        } catch (error) {
+            // Rollback
+            if (user?.favorites) {
+                dispatch(updateFavorites(user.favorites));
+            }
+            toast.error(error?.message || 'Failed to update favorites');
+        }
+    };
+
+    const handleAddToComparison = () => {
+        const currentList = JSON.parse(localStorage.getItem('comparisonList') || '[]');
+        
+        let newList;
+        if (currentList.includes(id)) {
+            newList = currentList.filter(fid => fid !== id);
+            toast.success('Removed from comparison');
+        } else {
+            if (currentList.length >= 4) {
+                toast.error('Comparison list is full (max 4)');
+                return;
+            }
+            newList = [...currentList, id];
+            toast.success('Added to comparison!', { icon: '📊' });
+        }
+
+        localStorage.setItem('comparisonList', JSON.stringify(newList));
+        setComparisonList(newList);
+    };
+
+    const handleReviewSubmit = async (e) => {
+        e.preventDefault();
+        if (!user) {
+            toast.error('Log in to post a review');
+            navigate('/login');
+            return;
+        }
+
+        if (reviewComment.length < 10) {
+            toast.error('Comment must be at least 10 characters');
+            return;
+        }
+
+        setSubmittingReview(true);
+        try {
+            await reviewService.addReview({
+                businessId: id,
+                rating: reviewRating,
+                comment: reviewComment
+            });
+            toast.success('Review posted successfully!');
+            // Refresh reviews
+            const reviewsData = await reviewService.getBusinessReviews(id);
+            setReviews(reviewsData.data || []);
+            setShowReviewForm(false);
+            setReviewComment('');
+            setReviewRating(5);
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to post review');
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -67,13 +182,20 @@ const BusinessDetail = () => {
     const meta = CATEGORY_META[business.category?.name] || { emoji: '📍', color: 'bg-gray-50 text-gray-600' };
 
     return (
-        <div className="min-h-screen pb-20" style={{ background: '#fffdf9' }}>
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="min-h-screen pb-32" 
+            style={{ background: '#fffdf9' }}
+        >
             {/* Breadcrumbs */}
             <div className="pt-28 pb-6 container mx-auto px-4">
                 <div className="flex items-center gap-2 text-sm text-stone-400 font-medium">
                     <Link to="/" className="hover:text-primary-600 transition-colors">Home</Link>
                     <ChevronRight size={14} />
-                    <Link to="/search" className="hover:text-primary-600 transition-colors">Explore</Link>
+                    <Link to="/search" className="hover:text-primary-600 transition-colors">Search</Link>
                     <ChevronRight size={14} />
                     <span className="text-stone-900 font-bold">{business.name}</span>
                 </div>
@@ -121,7 +243,7 @@ const BusinessDetail = () => {
 
                             <div className="flex flex-wrap gap-3">
                                 <button
-                                    onClick={() => setIsFavourited(f => !f)}
+                                    onClick={handleToggleFavorite}
                                     className={`p-4 backdrop-blur-md rounded-2xl border transition-all group ${isFavourited
                                         ? 'bg-red-500 border-red-400 text-white shadow-lg shadow-red-200'
                                         : 'bg-white/10 border-white/20 text-white hover:bg-red-500/20 hover:border-red-400'
@@ -159,10 +281,85 @@ const BusinessDetail = () => {
                             </div>
                             <h2 className="text-2xl font-black text-stone-900 tracking-tight">Business Overview</h2>
                         </div>
-                        <p className="text-stone-500 leading-relaxed text-lg font-medium whitespace-pre-line opacity-90">
+                        <p className="text-stone-500 leading-relaxed text-lg font-medium whitespace-pre-line opacity-90 mb-10">
                             {business.description}
                         </p>
+
+                        {/* Differentiation Highlights */}
+                        <div className="flex flex-wrap gap-4 pt-10 border-t border-orange-50">
+                            {business.attributes?.isWomenOwned && (
+                                <div className="flex items-center gap-2 px-5 py-2.5 bg-pink-50 text-pink-700 rounded-2xl border border-pink-100 font-bold text-xs">
+                                    <Award size={16} /> Women Owned
+                                </div>
+                            )}
+                            {business.attributes?.isEcoFriendly && (
+                                <div className="flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 font-bold text-xs">
+                                    <Leaf size={16} /> Eco Friendly
+                                </div>
+                            )}
+                            {business.attributes?.hasParking && (
+                                <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100 font-bold text-xs">
+                                    <Check size={16} /> Free Parking
+                                </div>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Active Deals - UNIQUE FEATURE */}
+                    {business.deals?.length > 0 && (
+                        <div className="premium-gradient p-10 md:p-12 rounded-[3.5rem] text-white shadow-2xl shadow-orange-200">
+                            <div className="flex items-center gap-4 mb-8">
+                                <Tag size={32} className="text-orange-300" />
+                                <div>
+                                    <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Flash Deals</h2>
+                                    <p className="text-orange-200/60 font-black text-[10px] uppercase tracking-widest mt-2">Limited time exclusive offers</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {business.deals.map((deal, idx) => (
+                                    <div key={idx} className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-[2rem] hover:bg-white/20 transition-all cursor-pointer group">
+                                        <h4 className="font-black text-xl mb-2 text-white">{deal.title}</h4>
+                                        <p className="text-orange-50/70 text-sm font-medium mb-4">{deal.description}</p>
+                                        <div className="flex items-center justify-between">
+                                            <div className="px-4 py-2 bg-orange-500/30 rounded-xl font-black text-sm tracking-tighter border border-orange-400/30">
+                                                {deal.discountCode}
+                                            </div>
+                                            <button className="text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-white transition-colors">Copy Code</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Service & Booking - UNIQUE FEATURE */}
+                    {business.services?.length > 0 && (
+                        <div className="bg-white p-10 md:p-12 rounded-[3rem] border border-orange-50 shadow-sm overflow-hidden relative">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50/50 rounded-full blur-3xl -mr-32 -mt-32" />
+                            <div className="flex justify-between items-end mb-10 relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-stone-900 rounded-2xl flex items-center justify-center text-white">
+                                        <CalendarCheck size={24} />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-stone-900 tracking-tight">Services & Pricing</h2>
+                                </div>
+                            </div>
+                            <div className="space-y-4 relative z-10">
+                                {business.services.map((service, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-6 bg-stone-50 rounded-3xl border border-stone-100 hover:border-orange-200 transition-all group">
+                                        <div>
+                                            <h4 className="font-black text-stone-900 mb-1">{service.name}</h4>
+                                            <p className="text-xs text-stone-400 font-medium">{service.duration} • {service.description}</p>
+                                        </div>
+                                        <div className="flex items-center gap-6">
+                                            <span className="text-xl font-black text-stone-900">₹{service.price}</span>
+                                            <button className="px-5 py-2.5 bg-white text-primary-600 border-2 border-orange-100 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 hover:text-white hover:border-orange-600 transition-all shadow-sm">Book</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Features Tiles */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -187,7 +384,7 @@ const BusinessDetail = () => {
                     </div>
 
                     {/* Review Section */}
-                    <div className="bg-white p-10 md:p-12 rounded-[3rem] border border-orange-50 shadow-sm">
+                    <div className="bg-white p-10 md:p-12 rounded-[3rem] border border-orange-100 shadow-sm mb-12">
                         <div className="flex justify-between items-center mb-10">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 border border-amber-100">
@@ -195,28 +392,105 @@ const BusinessDetail = () => {
                                 </div>
                                 <h2 className="text-2xl font-black text-stone-900 tracking-tight">Public Sentiments</h2>
                             </div>
-                            <button className="px-6 py-2.5 bg-orange-50 text-primary-600 font-black text-xs rounded-xl hover:bg-orange-600 hover:text-white transition-all border border-orange-100 uppercase tracking-widest">Post Review</button>
+                            <button 
+                                onClick={() => setShowReviewForm(!showReviewForm)}
+                                className="px-6 py-2.5 bg-orange-50 text-primary-600 font-black text-xs rounded-xl hover:bg-orange-600 hover:text-white transition-all border border-orange-100 uppercase tracking-widest"
+                            >
+                                {showReviewForm ? 'Cancel' : 'Write Review'}
+                            </button>
                         </div>
 
-                        <div className="flex flex-col md:flex-row items-center gap-12 p-10 bg-orange-50/30 rounded-[2.5rem] border border-orange-50">
-                            <div className="text-center">
-                                <div className="text-7xl font-black text-stone-900 mb-2 leading-none">{business.averageRating?.toFixed(1) || '4.8'}</div>
-                                <div className="flex items-center gap-1 text-amber-500 justify-center mb-3">
-                                    {[1, 2, 3, 4, 5].map(n => <Star key={n} size={20} fill={n <= 4 ? "currentColor" : "none"} />)}
-                                </div>
-                                <div className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Overall Rating</div>
-                            </div>
-                            <div className="flex-1 w-full space-y-4">
-                                {[100, 15, 5, 0, 0].map((perc, i) => (
-                                    <div key={i} className="flex items-center gap-4 text-xs font-black">
-                                        <div className="w-8 text-stone-400 text-right">{5 - i}★</div>
-                                        <div className="flex-1 h-2.5 bg-white rounded-full overflow-hidden border border-orange-100">
-                                            <div className="h-full bg-secondary-500 rounded-full transition-all duration-1000" style={{ width: `${perc}%` }} />
+                        <AnimatePresence>
+                            {showReviewForm && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <form onSubmit={handleReviewSubmit} className="bg-orange-50/50 p-8 rounded-[2rem] border border-orange-100 mb-10">
+                                        <div className="flex flex-col md:flex-row gap-8">
+                                            <div className="shrink-0 text-center">
+                                                <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3">Your Rating</div>
+                                                <div className="flex items-center gap-1 justify-center">
+                                                    {[1, 2, 3, 4, 5].map(n => (
+                                                        <button
+                                                            key={n}
+                                                            type="button"
+                                                            onClick={() => setReviewRating(n)}
+                                                            className="transition-transform active:scale-90"
+                                                        >
+                                                            <Star 
+                                                                size={24} 
+                                                                className={n <= reviewRating ? 'text-orange-500' : 'text-stone-300'} 
+                                                                fill={n <= reviewRating ? 'currentColor' : 'none'}
+                                                            />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="flex-grow">
+                                                <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3">Your Experience</div>
+                                                <textarea 
+                                                    value={reviewComment}
+                                                    onChange={(e) => setReviewComment(e.target.value)}
+                                                    placeholder="Share your experience with this business..."
+                                                    className="w-full bg-white border border-stone-100 rounded-2xl p-5 text-sm font-medium focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all resize-none min-h-[120px]"
+                                                />
+                                                <div className="flex justify-end mt-4">
+                                                    <button 
+                                                        disabled={submittingReview}
+                                                        type="submit"
+                                                        className="btn btn-primary px-8 py-3 rounded-xl disabled:opacity-50"
+                                                    >
+                                                        {submittingReview ? 'Posting...' : 'Post Review'}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="w-8 text-stone-400 font-bold">{perc}%</div>
+                                    </form>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <div className="space-y-8">
+                            {reviews.length > 0 ? (
+                                reviews.map((rev, idx) => (
+                                    <div key={rev._id} className={`pb-8 ${idx !== reviews.length - 1 ? 'border-b border-orange-50' : ''}`}>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 rounded-2xl premium-gradient flex items-center justify-center text-white font-black text-sm shadow-lg shadow-orange-200">
+                                                    {rev.user?.name?.charAt(0).toUpperCase() || 'U'}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-stone-800">{rev.user?.name || 'Anonymous'}</p>
+                                                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em]">
+                                                        Verified Customer • {new Date(rev.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1 bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-100">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star 
+                                                        key={i} 
+                                                        size={14} 
+                                                        className={i < rev.rating ? 'text-orange-500' : 'text-stone-200'} 
+                                                        fill={i < rev.rating ? 'currentColor' : 'none'}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <p className="text-base text-stone-600 font-medium leading-relaxed italic pl-1">
+                                            "{rev.comment}"
+                                        </p>
                                     </div>
-                                ))}
-                            </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-20 bg-stone-50 rounded-[2.5rem] border-2 border-dashed border-stone-100">
+                                    <MessageSquare size={48} className="mx-auto text-stone-200 mb-4" />
+                                    <p className="text-stone-400 font-black uppercase tracking-[0.3em] text-xs">No reviews have been posted yet</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -274,12 +548,33 @@ const BusinessDetail = () => {
                                     href={getDirectionsUrl(business)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-full btn btn-primary py-4 rounded-xl flex items-center justify-center gap-3 group shadow-lg shadow-orange-100"
+                                    className="w-full btn btn-primary py-4 rounded-xl flex items-center justify-center gap-3 group shadow-lg shadow-orange-100 mb-4"
                                 >
                                     <Navigation size={18} className="group-hover:rotate-12 transition-transform" />
                                     <span className="font-black italic uppercase tracking-tighter">Navigate There</span>
                                     <ExternalLink size={14} className="opacity-40" />
                                 </a>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button 
+                                        onClick={handleToggleFavorite}
+                                        className={`flex items-center justify-center gap-2 py-3.5 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${
+                                            isFavourited 
+                                            ? 'bg-red-50 border-red-100 text-red-600' 
+                                            : 'bg-stone-50 border-stone-100 text-stone-600 hover:bg-red-50 hover:border-red-100 hover:text-red-600'
+                                        }`}
+                                    >
+                                        <Heart size={16} fill={isFavourited ? "currentColor" : "none"} />
+                                        {isFavourited ? 'Saved' : 'Save'}
+                                    </button>
+                                    <button 
+                                        onClick={handleAddToComparison}
+                                        className="flex items-center justify-center gap-2 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-stone-600 text-xs font-black uppercase tracking-widest hover:bg-primary-50 hover:border-primary-100 hover:text-primary-600 transition-all"
+                                    >
+                                        <ArrowLeftRight size={16} />
+                                        Compare
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -294,7 +589,41 @@ const BusinessDetail = () => {
                     </div>
                 </aside>
             </div>
-        </div>
+
+            {/* Comparison Floating Bar */}
+            <AnimatePresence>
+                {comparisonList.length > 0 && (
+                    <motion.div 
+                        initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[80] w-[calc(100%-2rem)] max-w-2xl bg-stone-900 border border-white/10 p-5 rounded-[2.5rem] shadow-2xl backdrop-blur-xl"
+                    >
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                            <div className="flex items-center gap-6">
+                                <div className="flex -space-x-3">
+                                    {comparisonList.map(cid => (
+                                        <div key={cid} className="w-10 h-10 rounded-full border-2 border-stone-800 bg-stone-700 flex items-center justify-center text-[10px] text-white font-bold">
+                                            {cid.slice(-2).toUpperCase()}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div>
+                                    <p className="text-white text-xs font-black uppercase tracking-widest">{comparisonList.length} Selected</p>
+                                    <p className="text-stone-400 text-[10px] font-medium hidden sm:block">Analyze them side-by-side</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => { localStorage.setItem('comparisonList', JSON.stringify([])); setComparisonList([]); }} 
+                                    className="text-stone-400 hover:text-white px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors">Clear</button>
+                                <Link to="/compare" className={`px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg ${comparisonList.length >= 2 ? 'bg-primary-600 text-white shadow-primary-900/20 hover:scale-105 active:scale-95' : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50'}`}>
+                                    {comparisonList.length < 2 ? `Add ${2 - comparisonList.length} More` : 'Compare Now'}
+                                </Link>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 };
 

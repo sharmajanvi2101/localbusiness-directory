@@ -3,7 +3,9 @@ import {
     getUsers,
     getUserById,
     updateUser,
-    deleteUser
+    deleteUser,
+    getFavoriteBusinesses,
+    toggleFavoriteBusiness
 } from '../controllers/userController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
@@ -12,6 +14,9 @@ const router = express.Router();
 router
     .route('/')
     .get(protect, authorize('admin', 'subadmin'), getUsers);
+
+router.get('/favorites', protect, getFavoriteBusinesses);
+router.post('/favorites/:businessId', protect, toggleFavoriteBusiness);
 
 router
     .route('/:id')

@@ -11,6 +11,10 @@
   --secondary: #16a34a;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -22,6 +26,30 @@ body {
   color: var(--foreground);
   font-family: 'Poppins', 'Outfit', sans-serif;
   overflow-x: hidden;
+  min-height: 100vh;
+  transition: opacity 0.3s ease;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  opacity: 0;
+  animation: fadeIn 0.5s ease-in forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+a, button, .market-card, .category-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button:active, a:active {
+  transform: scale(0.96) !important;
+}
+
+.btn:active, .btn-primary:active {
+  transform: scale(0.98) !important;
 }
 
 /* Saffron Scrollbar */
@@ -275,6 +303,17 @@ body {
     transform: scale(1.12);
   }
 }
+
+.btn-running {
+  animation: running-btn 3s infinite ease-in-out;
+}
+
+@keyframes running-btn {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
 
 /* ============ FOOTER ============ */
 .footer-gradient {

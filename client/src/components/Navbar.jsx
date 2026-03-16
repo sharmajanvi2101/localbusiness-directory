@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, PlusCircle, User, Users, LogOut, Menu, X, MapPin, ChevronDown, Bell, ShieldCheck, LayoutDashboard } from 'lucide-react';
+import { Search, PlusCircle, User, Users, LogOut, Menu, X, MapPin, ChevronDown, Bell, ShieldCheck, LayoutDashboard, Heart, ArrowLeftRight } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import authService from '../services/authService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +37,6 @@ const Navbar = () => {
 
     return (
         <nav className="fixed top-0 w-full z-50 glass-navbar shadow-sm">
-
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16 items-center gap-6">
                     {/* Logo */}
@@ -52,81 +51,105 @@ const Navbar = () => {
 
                     {/* Center Nav Links */}
                     <div className="hidden md:flex items-center gap-8">
-                        <Link to="/search" className="text-sm font-bold text-stone-600 hover:text-primary-600 transition-colors">Explore</Link>
                         <Link to="/about" className="text-sm font-bold text-stone-600 hover:text-primary-600 transition-colors">About Us</Link>
                     </div>
 
                     {/* Right Side */}
                     <div className="hidden md:flex items-center gap-3">
+                        {isAuthenticated && user?.role === 'owner' && (
+                            <Link to="/owner/dashboard" className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl text-stone-600 hover:text-primary-600 transition-all font-bold text-sm">
+                                <LayoutDashboard size={18} /> Dashboard
+                            </Link>
+                        )}
+                        {(!isAuthenticated || (user && user.role === 'owner')) && (
+                            <Link to="/add-business" className="btn btn-primary text-sm shine-effect">
+                                <PlusCircle size={16} /> List Business
+                            </Link>
+                        )}
+                        {isAuthenticated && (
+                            <div className="flex items-center gap-1 bg-stone-100/50 p-1 rounded-xl">
+                                <Link 
+                                    to="/compare" 
+                                    title="Compare Businesses"
+                                    className="p-2 rounded-lg text-stone-500 hover:bg-white hover:text-primary-600 hover:shadow-sm transition-all"
+                                >
+                                    <ArrowLeftRight size={18} />
+                                </Link>
+                                <Link 
+                                    to="/favorites" 
+                                    title="My Favorites"
+                                    className="p-2 rounded-lg text-stone-500 hover:bg-white hover:text-rose-600 hover:shadow-sm transition-all"
+                                >
+                                    <Heart size={18} />
+                                </Link>
+                            </div>
+                        )}
+                        
                         {isAuthenticated ? (
-                            <>
-                                {(user.role === 'owner' || user.role === 'admin') && (
-                                    <Link to="/add-business" className="btn btn-primary text-sm shine-effect">
-                                        <PlusCircle size={16} /> List Business
-                                    </Link>
-                                )}
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-orange-100 hover:border-orange-300 transition-all bg-orange-50 text-stone-700"
+                                >
+                                    <div className="w-7 h-7 rounded-lg premium-gradient flex items-center justify-center text-white font-bold text-sm shadow">
+                                        {user?.name?.charAt(0)?.toUpperCase()}
+                                    </div>
+                                    <span className="text-sm font-semibold max-w-[90px] truncate">{user?.name}</span>
+                                    <ChevronDown size={14} className={`transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
 
-                                <div className="relative" ref={menuRef}>
-                                    <button
-                                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-orange-100 hover:border-orange-300 transition-all bg-orange-50 text-stone-700"
-                                    >
-                                        <div className="w-7 h-7 rounded-lg premium-gradient flex items-center justify-center text-white font-bold text-sm shadow">
-                                            {user?.name?.charAt(0)?.toUpperCase()}
+                                {isMenuOpen && (
+                                    <div className="absolute right-0 mt-3 w-52 bg-white rounded-2xl shadow-2xl shadow-orange-100 border border-orange-100 py-2 z-50">
+                                        <div className="px-4 py-3 border-b border-orange-50 mb-1">
+                                            <p className="text-xs text-stone-400 font-medium uppercase tracking-wider">Signed in as</p>
+                                            <p className="font-bold text-stone-800 truncate mt-0.5">{user?.name}</p>
+                                            <span className="inline-block mt-1 px-2 py-0.5 text-[10px] rounded-full font-bold uppercase bg-orange-100 text-orange-700 tracking-widest">{user?.role}</span>
                                         </div>
-                                        <span className="text-sm font-semibold max-w-[90px] truncate">{user?.name}</span>
-                                        <ChevronDown size={14} className={`transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
-                                    </button>
-
-                                    {isMenuOpen && (
-                                        <div className="absolute right-0 mt-3 w-52 bg-white rounded-2xl shadow-2xl shadow-orange-100 border border-orange-100 py-2 z-50">
-                                            <div className="px-4 py-3 border-b border-orange-50 mb-1">
-                                                <p className="text-xs text-stone-400 font-medium uppercase tracking-wider">Signed in as</p>
-                                                <p className="font-bold text-stone-800 truncate mt-0.5">{user?.name}</p>
-                                                <span className="inline-block mt-1 px-2 py-0.5 text-[10px] rounded-full font-bold uppercase bg-orange-100 text-orange-700 tracking-widest">{user?.role}</span>
-                                            </div>
-                                            {user?.role === 'owner' && (
-                                                <Link
-                                                    to="/owner/dashboard"
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-orange-50 hover:text-primary-600 transition-colors font-medium"
-                                                >
-                                                    <LayoutDashboard size={16} /> My Dashboard
-                                                </Link>
-                                            )}
-                                            {(user?.role === 'admin' || user?.role === 'subadmin') && (
-                                                <Link
-                                                    to={user.role === 'admin' ? "/admin" : "/subadmin"}
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-orange-50 hover:text-primary-600 transition-colors font-medium"
-                                                >
-                                                    <ShieldCheck size={16} /> {user.role === 'admin' ? "Admin Panel" : "Mod Panel"}
-                                                </Link>
-                                            )}
+                                        {user?.role === 'owner' && (
                                             <Link
-                                                to="/profile"
+                                                to="/owner/dashboard"
                                                 onClick={() => setIsMenuOpen(false)}
                                                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-orange-50 hover:text-primary-600 transition-colors font-medium"
                                             >
-                                                <User size={16} /> My Profile
+                                                <LayoutDashboard size={16} /> My Dashboard
                                             </Link>
-                                            <button
-                                                onClick={handleLogout}
-                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 text-left font-medium transition-colors"
+                                        )}
+                                        {(user?.role === 'admin' || user?.role === 'subadmin') && (
+                                            <Link
+                                                to={user.role === 'admin' ? "/admin" : "/subadmin"}
+                                                onClick={() => setIsMenuOpen(false)}
+                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-orange-50 hover:text-primary-600 transition-colors font-medium"
                                             >
-                                                <LogOut size={16} /> Sign Out
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </>
+                                                <ShieldCheck size={16} /> {user.role === 'admin' ? "Admin Panel" : "Mod Panel"}
+                                            </Link>
+                                        )}
+                                        <Link
+                                            to="/profile"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-orange-50 hover:text-primary-600 transition-colors font-medium"
+                                        >
+                                            <User size={16} /> My Profile
+                                        </Link>
+                                        <Link
+                                            to="/favorites"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-700 hover:bg-orange-50 hover:text-primary-600 transition-colors font-medium"
+                                        >
+                                            <Heart size={16} /> My Favorites
+                                        </Link>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 text-left font-medium transition-colors"
+                                        >
+                                            <LogOut size={16} /> Sign Out
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <div className="flex items-center gap-3">
                                 <Link to="/login" className="text-stone-600 hover:text-primary-600 font-semibold text-sm transition-colors">
                                     Sign In
-                                </Link>
-                                <Link to="/register" className="btn btn-primary text-sm shine-effect">
-                                    Get Started
                                 </Link>
                             </div>
                         )}
@@ -152,32 +175,33 @@ const Navbar = () => {
                         className="md:hidden bg-white border-t border-orange-100 shadow-xl overflow-hidden"
                     >
                         <div className="px-4 py-5 space-y-3">
-                            <Link to="/search" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-orange-50 text-stone-700 font-semibold">
-                                <Search size={18} className="text-primary-500" /> Explore All
-                            </Link>
-                            <Link to="/about" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-orange-50 text-stone-700 font-semibold">
+                            <Link to="/about" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-orange-50 text-stone-700 font-semibold text-sm">
                                 <Users size={18} className="text-orange-500" /> About Us
                             </Link>
 
-                            <div className="border-t border-orange-50 pt-3 mt-3">
+                            {(!isAuthenticated || (user && user.role === 'owner')) && (
+                                <Link to="/add-business" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2 btn btn-primary w-full shadow-orange-200 text-sm">
+                                    <PlusCircle size={18} /> List Your Business
+                                </Link>
+                            )}
+
+                            <div className="border-t border-orange-50 pt-3 mt-3 space-y-1">
                                 {isAuthenticated ? (
                                     <>
-                                        {(user.role === 'owner' || user.role === 'admin') && (
-                                            <Link to="/add-business" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2 btn btn-primary w-full mb-3 shadow-orange-200">
-                                                <PlusCircle size={18} /> List Your Business
-                                            </Link>
-                                        )}
-                                        <Link to="/profile" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-orange-50 text-stone-700 font-semibold">
-                                            <User size={18} className="text-primary-500" /> My Profile
+                                        <Link to="/profile" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-orange-50 text-stone-700 font-semibold text-sm">
+                                            <User size={18} className="text-secondary-500" /> My Profile
                                         </Link>
-                                        <button onClick={handleLogout} className="w-full flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-red-50 text-red-500 font-semibold">
+                                        <Link to="/favorites" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-orange-50 text-stone-700 font-semibold text-sm">
+                                            <Heart size={18} className="text-rose-500" /> My Favorites
+                                        </Link>
+                                        <button onClick={handleLogout} className="w-full flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-red-50 text-red-500 font-semibold text-sm">
                                             <LogOut size={18} /> Sign Out
                                         </button>
                                     </>
                                 ) : (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <Link to="/login" onClick={() => setIsMobileOpen(false)} className="btn btn-secondary text-sm">Sign In</Link>
-                                        <Link to="/register" onClick={() => setIsMobileOpen(false)} className="btn btn-primary text-sm shadow-orange-200">Get Started</Link>
+                                    <div className="grid grid-cols-2 gap-3 pt-2">
+                                        <Link to="/login" onClick={() => setIsMobileOpen(false)} className="btn btn-secondary text-xs">Sign In</Link>
+                                        <Link to="/register" onClick={() => setIsMobileOpen(false)} className="btn btn-primary text-xs shadow-orange-200">Get Started</Link>
                                     </div>
                                 )}
                             </div>

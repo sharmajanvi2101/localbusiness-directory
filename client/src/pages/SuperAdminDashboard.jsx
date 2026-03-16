@@ -27,8 +27,14 @@ import { toast } from 'react-hot-toast';
 import businessService from '../services/businessService';
 import userService from '../services/userService';
 import metaService from '../services/metaService';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { logout } from '../store/slices/authSlice';
 
 const SuperAdminDashboard = () => {
+    const { user: currentUser } = useSelector((state) => state.auth);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview'); // overview, users, businesses, categories, cities, subadmins, settings
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
@@ -106,7 +112,12 @@ const SuperAdminDashboard = () => {
             }
             setData(result);
         } catch (error) {
-            toast.error(`Error loading ${activeTab}`);
+            if (error.includes('not authorized')) {
+                toast.error('Session expired or permissions changed');
+                navigate('/');
+            } else {
+                toast.error(`Error loading ${activeTab}`);
+            }
         } finally {
             setLoading(false);
         }
@@ -120,9 +131,19 @@ const SuperAdminDashboard = () => {
         try {
             if (activeTab === 'users') {
                 if (action === 'role') {
-                    const newRole = currentStatus === 'subadmin' ? 'customer' : 'subadmin';
+                    if (id === currentUser?._id) {
+                        toast.error('You cannot change your own role from this panel to prevent accidental lockout.');
+                        return;
+                    }
+                    
+                    // Cycle roles: customer -> owner -> subadmin -> customer
+                    let newRole = 'customer';
+                    if (currentStatus === 'customer') newRole = 'owner';
+                    else if (currentStatus === 'owner') newRole = 'subadmin';
+                    else newRole = 'customer';
+
                     await userService.updateUser(id, { role: newRole });
-                    toast.success(`Role changed to ${newRole}`);
+                    toast.success(`Role changed to ${newRole.charAt(0).toUpperCase() + newRole.slice(1)}`);
                 } else if (action === 'status') {
                     await userService.updateUser(id, { isVerified: !currentStatus });
                     toast.success(!currentStatus ? 'User activated' : 'User suspended');
@@ -193,7 +214,14 @@ const SuperAdminDashboard = () => {
         const name = item.name || item.cityName || '';
         const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                              (item.email && item.email.toLowerCase().includes(searchQuery.toLowerCase()));
-        return matchesSearch;
+        
+        let matchesFilter = true;
+        if (filterStatus !== 'all' && (item.isVerified !== undefined || item.isActive !== undefined)) {
+            const status = item.isVerified || item.isActive;
+            matchesFilter = (filterStatus === 'active' && status) || (filterStatus === 'pending' && !status);
+        }
+
+        return matchesSearch && matchesFilter;
     });
 
     return (
@@ -255,23 +283,31 @@ const SuperAdminDashboard = () => {
                         {/* Global Stats Matrix */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
-                                { label: 'Platform Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+12%' },
-                                { label: 'Active Listings', value: stats.totalBusinesses, icon: Store, color: 'text-orange-600', bg: 'bg-orange-50', trend: '+5%' },
-                                { label: 'Categories', value: stats.totalCategories, icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-50', trend: 'Stable' },
-                                { label: 'Cities/Hubs', value: stats.totalCities, icon: MapPin, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+2' },
+                                { id: 'users', label: 'Platform Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+12%' },
+                                { id: 'businesses', label: 'Active Listings', value: stats.totalBusinesses, icon: Store, color: 'text-orange-600', bg: 'bg-orange-50', trend: stats.pendingVerifications > 0 ? `${stats.pendingVerifications} PENDING` : 'Stable', trendColor: stats.pendingVerifications > 0 ? 'text-orange-600 bg-orange-100' : 'text-stone-400 bg-stone-50' },
+                                { id: 'categories', label: 'Categories', value: stats.totalCategories, icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-50', trend: 'Stable' },
+                                { id: 'cities', label: 'Cities/Hubs', value: stats.totalCities, icon: MapPin, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+2' },
                             ].map((stat, i) => (
                                 <motion.div
                                     key={stat.label}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.1 }}
-                                    className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm hover:shadow-indigo-100/50 transition-all border-b-4 border-b-transparent hover:border-b-indigo-500"
+                                    onClick={() => {
+                                        setActiveTab(stat.id);
+                                        if (stat.label === 'Active Listings' && stats.pendingVerifications > 0) {
+                                            setFilterStatus('pending');
+                                        } else {
+                                            setFilterStatus('all');
+                                        }
+                                    }}
+                                    className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm hover:shadow-indigo-100/50 transition-all border-b-4 border-b-transparent hover:border-b-indigo-500 cursor-pointer"
                                 >
                                     <div className="flex items-start justify-between mb-4">
                                         <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
                                             <stat.icon size={24} />
                                         </div>
-                                        <div className="px-2 py-1 bg-stone-50 text-stone-400 text-[9px] font-black uppercase tracking-widest rounded-lg">
+                                        <div className={`px-2 py-1 ${stat.trendColor || 'bg-stone-50 text-stone-400'} text-[9px] font-black uppercase tracking-widest rounded-lg`}>
                                             {stat.trend}
                                         </div>
                                     </div>
@@ -328,7 +364,18 @@ const SuperAdminDashboard = () => {
                                     className="w-full pl-12 pr-4 py-3 rounded-2xl bg-stone-50 border border-transparent focus:bg-white focus:border-indigo-100 outline-none transition-all text-sm font-medium"
                                 />
                             </div>
-                            <button className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all">
+                            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                                {['all', 'active', 'pending'].map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setFilterStatus(status)}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-indigo-600 text-white shadow-lg' : 'bg-stone-50 text-stone-400 hover:text-stone-600 border border-transparent hover:border-stone-100'}`}
+                                    >
+                                        {status}
+                                    </button>
+                                ))}
+                            </div>
+                            <button className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all shrink-0">
                                 <Filter size={14} /> Export CSV
                             </button>
                         </div>

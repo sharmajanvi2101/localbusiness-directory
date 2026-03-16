@@ -16,6 +16,14 @@ const userService = {
     deleteUser: async (id) => {
         const response = await api.delete(`/users/${id}`);
         return response.data;
+    },
+    getFavorites: async () => {
+        const response = await api.get('/users/favorites');
+        return response.data;
+    },
+    toggleFavorite: async (businessId) => {
+        const response = await api.post(`/users/favorites/${businessId}`);
+        return response.data;
     }
 };
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import {
     Briefcase, MapPin, Phone, Globe, Mail,
-    Clock, Plus, Trash2, ChevronRight,
+    Clock, Plus, Trash2, ChevronRight, ChevronDown,
     CheckCircle2, Rocket, ArrowRight, Layout
 } from 'lucide-react';
 import metaService from '../services/metaService';
@@ -17,12 +17,21 @@ const AddBusiness = () => {
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
     const [cities, setCities] = useState([]);
-    const { register, handleSubmit, formState: { errors } } = useForm();
+    const { register, handleSubmit, reset, formState: { errors } } = useForm();
     const navigate = useNavigate();
+    const location = useLocation();
 
+    // Fill form if coming back from login
+    useEffect(() => {
+        if (location.state?.formData) {
+            reset(location.state.formData);
+        }
+    }, [location.state, reset]);
+
+    // Restrict to Guests or Owners/Admins only
     useEffect(() => {
         if (user && user.role === 'customer') {
-            toast.error('Only business owners can add listings');
+            toast.error('Please use a Business Owner account to list.');
             navigate('/');
         }
     }, [user, navigate]);
@@ -44,9 +53,20 @@ const AddBusiness = () => {
     }, []);
 
     const onSubmit = async (data) => {
+        if (!user) {
+            toast.error('Please login to submit your business');
+            navigate('/login', { state: { from: '/add-business', formData: data } });
+            return;
+        }
+
+        // Clean up optional fields that might be empty strings
+        const submissionData = { ...data };
+        if (!submissionData.email) delete submissionData.email;
+        if (!submissionData.website) delete submissionData.website;
+
         setLoading(true);
         try {
-            await businessService.createBusiness(data);
+            await businessService.createBusiness(submissionData);
             toast.success('Business listing created! Awaiting verification.');
             navigate('/owner/dashboard');
         } catch (error) {
@@ -126,29 +146,35 @@ const AddBusiness = () => {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div>
+                                    <div className="relative">
                                         <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3 ml-1">Category</label>
-                                        <select
-                                            {...register('category', { required: 'Required' })}
-                                            className="input-premium bg-white appearance-none"
-                                        >
-                                            <option value="">Select Category</option>
-                                            {categories.map((c) => (
-                                                <option key={c._id} value={c._id}>{c.name}</option>
-                                            ))}
-                                        </select>
+                                        <div className="relative">
+                                            <select
+                                                {...register('category', { required: 'Required' })}
+                                                className="input-premium bg-white appearance-none pr-10"
+                                            >
+                                                <option value="">Select Category</option>
+                                                {categories.map((c) => (
+                                                    <option key={c._id} value={c._id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" size={16} />
+                                        </div>
                                     </div>
-                                    <div>
+                                    <div className="relative">
                                         <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3 ml-1">City</label>
-                                        <select
-                                            {...register('city', { required: 'Required' })}
-                                            className="input-premium bg-white appearance-none"
-                                        >
-                                            <option value="">Select City</option>
-                                            {cities.map((c) => (
-                                                <option key={c._id} value={c._id}>{c.name}</option>
-                                            ))}
-                                        </select>
+                                        <div className="relative">
+                                            <select
+                                                {...register('city', { required: 'Required' })}
+                                                className="input-premium bg-white appearance-none pr-10"
+                                            >
+                                                <option value="">Select City</option>
+                                                {cities.map((c) => (
+                                                    <option key={c._id} value={c._id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" size={16} />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -180,11 +206,11 @@ const AddBusiness = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div>
                                         <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3 ml-1">Phone Number</label>
-                                        <div className="relative group">
-                                            <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-orange-200 group-focus-within:text-primary-500 transition-colors" size={20} />
+                                    <div className="relative group">
+                                            <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-orange-300 group-focus-within:text-primary-500 transition-colors z-10 pointer-events-none" size={18} />
                                             <input
                                                 {...register('phone', { required: 'Required' })}
-                                                className="input-premium pl-14"
+                                                className="input-premium !pl-14"
                                                 placeholder="+91 00000 00000"
                                             />
                                         </div>
@@ -192,10 +218,10 @@ const AddBusiness = () => {
                                     <div>
                                         <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3 ml-1">Official Email</label>
                                         <div className="relative group">
-                                            <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-orange-200 group-focus-within:text-primary-500 transition-colors" size={20} />
+                                            <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-orange-300 group-focus-within:text-primary-500 transition-colors z-10 pointer-events-none" size={18} />
                                             <input
                                                 {...register('email')}
-                                                className="input-premium pl-14"
+                                                className="input-premium !pl-14"
                                                 placeholder="contact@company.com"
                                             />
                                         </div>
@@ -205,10 +231,10 @@ const AddBusiness = () => {
                                 <div>
                                     <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3 ml-1">Website URL</label>
                                     <div className="relative group">
-                                        <Globe className="absolute left-5 top-1/2 -translate-y-1/2 text-orange-200 group-focus-within:text-primary-500 transition-colors" size={20} />
+                                        <Globe className="absolute left-5 top-1/2 -translate-y-1/2 text-orange-300 group-focus-within:text-primary-500 transition-colors z-10 pointer-events-none" size={18} />
                                         <input
                                             {...register('website')}
-                                            className="input-premium pl-14"
+                                            className="input-premium !pl-14"
                                             placeholder="https://www.yourdomain.com"
                                         />
                                     </div>
@@ -247,13 +273,24 @@ const AddBusiness = () => {
                                 >
                                     {loading ? (
                                         <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : !user ? (
+                                        <>
+                                            <span className="text-lg font-black italic uppercase tracking-tighter">Login or Sign Up</span>
+                                            <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                                        </>
                                     ) : (
                                         <>
-                                            <span className="text-lg font-black italic uppercase tracking-tighter">Submit Listing</span>
+                                            <span className="text-lg font-black italic uppercase tracking-tighter">{user.role === 'customer' ? 'List & Upgrade Profile' : 'Submit Listing'}</span>
                                             <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
                                         </>
                                     )}
                                 </button>
+                                
+                                {!user && (
+                                    <p className="text-[10px] text-stone-400 font-bold text-center uppercase tracking-widest px-4">
+                                        You need an account to publish. Your data will be kept.
+                                    </p>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => navigate('/')}
@@ -262,14 +299,6 @@ const AddBusiness = () => {
                                     Save Draft
                                 </button>
                             </div>
-                        </div>
-
-                        {/* Verification Note */}
-                        <div className="hero-gradient p-10 rounded-[2.5rem] text-white shadow-xl shadow-orange-100">
-                            <h4 className="text-lg font-black mb-4">Verification Audit</h4>
-                            <p className="text-orange-100 text-sm opacity-80 leading-relaxed font-medium">
-                                Once submitted, our team reviews your profile. Verified badges are awarded within 24-48 hours usually.
-                            </p>
                         </div>
                     </aside>
                 </form>

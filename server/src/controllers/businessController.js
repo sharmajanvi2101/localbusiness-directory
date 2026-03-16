@@ -45,24 +45,52 @@ const getBusinessById = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Get business by slug
+// @route   GET /api/businesses/slug/:slug
+// @access  Public
+const getBusinessBySlug = asyncHandler(async (req, res) => {
+    const business = await Business.findOne({ slug: req.params.slug })
+        .populate('category', 'name icon')
+        .populate('city', 'name state')
+        .populate('owner', 'name email phone');
+
+    if (business) {
+        res.status(200).json(business);
+    } else {
+        res.status(404);
+        throw new Error('Business not found');
+    }
+});
+
 // @desc    Create business profile
 // @route   POST /api/businesses
 // @access  Private/Owner
 const createBusiness = asyncHandler(async (req, res) => {
     const { name, description, category, city, address, phone, email, website, workingHours } = req.body;
-
-    const business = await Business.create({
+    const businessData = {
         name,
         description,
         category,
         city,
         address,
         phone,
-        email,
-        website,
-        workingHours,
-        owner: req.user._id
-    });
+        owner: req.user._id,
+        slug: name.toLowerCase().split(' ').join('-') + '-' + Math.floor(Math.random() * 1000),
+        location: {
+            type: 'Point',
+            coordinates: [0, 0] 
+        }
+    };
+
+    if (email) businessData.email = email;
+    if (website) businessData.website = website;
+    if (workingHours) businessData.workingHours = workingHours;
+    if (req.body.logo) businessData.logo = req.body.logo;
+    if (req.body.coverImage) businessData.coverImage = req.body.coverImage;
+    if (req.body.portfolio) businessData.portfolio = req.body.portfolio;
+    if (req.body.announcements) businessData.announcements = req.body.announcements;
+
+    const business = await Business.create(businessData);
 
     res.status(201).json(business);
 });
@@ -74,8 +102,8 @@ const updateBusiness = asyncHandler(async (req, res) => {
     const business = await Business.findById(req.params.id);
 
     if (business) {
-        // Only owner or admin can update
-        if (business.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        // Only owner, admin, or subadmin can update
+        if (business.owner.toString() !== req.user._id.toString() && !['admin', 'subadmin'].includes(req.user.role)) {
             res.status(401);
             throw new Error('Not authorized to update this business');
         }
@@ -89,6 +117,10 @@ const updateBusiness = asyncHandler(async (req, res) => {
         business.email = req.body.email || business.email;
         business.website = req.body.website || business.website;
         business.workingHours = req.body.workingHours || business.workingHours;
+        business.logo = req.body.logo || business.logo;
+        business.coverImage = req.body.coverImage || business.coverImage;
+        business.portfolio = req.body.portfolio || business.portfolio;
+        business.announcements = req.body.announcements || business.announcements;
 
         const updatedBusiness = await business.save();
         res.status(200).json(updatedBusiness);
@@ -121,8 +153,8 @@ const deleteBusiness = asyncHandler(async (req, res) => {
     const business = await Business.findById(req.params.id);
 
     if (business) {
-        // Only owner or admin can delete
-        if (business.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        // Only owner, admin, or subadmin can delete
+        if (business.owner.toString() !== req.user._id.toString() && !['admin', 'subadmin'].includes(req.user.role)) {
             res.status(401);
             throw new Error('Not authorized to delete this business');
         }
@@ -170,12 +202,30 @@ const getBusinessesInRadius = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Track business view
+// @route   POST /api/businesses/:id/view
+// @access  Public
+const trackBusinessView = asyncHandler(async (req, res) => {
+    const business = await Business.findById(req.params.id);
+
+    if (business) {
+        business.views += 1;
+        await business.save();
+        res.status(200).json({ views: business.views });
+    } else {
+        res.status(404);
+        throw new Error('Business not found');
+    }
+});
+
 export {
     getBusinesses,
     getBusinessById,
+    getBusinessBySlug,
     createBusiness,
     updateBusiness,
     verifyBusiness,
     deleteBusiness,
-    getBusinessesInRadius
+    getBusinessesInRadius,
+    trackBusinessView
 };

@@ -27,13 +27,13 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (user) {
-        generateToken(res, user._id);
         res.status(201).json({
             _id: user._id,
             name: user.name,
             email: user.email,
             phone: user.phone,
-            role: user.role
+            role: user.role,
+            favorites: user.favorites || []
         });
     } else {
         res.status(400);
@@ -56,7 +56,8 @@ const loginUser = asyncHandler(async (req, res) => {
             name: user.name,
             email: user.email,
             phone: user.phone,
-            role: user.role
+            role: user.role,
+            favorites: user.favorites || []
         });
     } else {
         res.status(401);
@@ -85,7 +86,8 @@ const getUserProfile = asyncHandler(async (req, res) => {
         name: req.user.name,
         email: req.user.email,
         phone: req.user.phone,
-        role: req.user.role
+        role: req.user.role,
+        favorites: req.user.favorites || []
     };
 
     res.status(200).json(user);
@@ -113,7 +115,8 @@ const updateUserProfile = asyncHandler(async (req, res) => {
             name: updatedUser.name,
             email: updatedUser.email,
             phone: updatedUser.phone,
-            role: updatedUser.role
+            role: updatedUser.role,
+            favorites: updatedUser.favorites || []
         });
     } else {
         res.status(404);

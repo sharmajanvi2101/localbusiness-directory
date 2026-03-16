@@ -69,9 +69,61 @@ const deleteUser = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Get user's favorite businesses
+// @route   GET /api/users/favorites
+// @access  Private
+const getFavoriteBusinesses = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id).populate({
+        path: 'favorites',
+        populate: { path: 'city' }
+    });
+
+    if (user) {
+        res.status(200).json(user.favorites || []);
+    } else {
+        res.status(404);
+        throw new Error('User not found');
+    }
+});
+
+// @desc    Toggle favorite business
+// @route   POST /api/users/favorites/:businessId
+// @access  Private
+const toggleFavoriteBusiness = asyncHandler(async (req, res) => {
+    const { businessId } = req.params;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+        res.status(404);
+        throw new Error('User not found');
+    }
+
+    // Use includes with string conversion for safety
+    const isFavorite = user.favorites.some(id => id.toString() === businessId);
+
+    if (isFavorite) {
+        await User.findByIdAndUpdate(userId, {
+            $pull: { favorites: businessId }
+        });
+    } else {
+        await User.findByIdAndUpdate(userId, {
+            $addToSet: { favorites: businessId }
+        });
+    }
+
+    res.status(200).json({ 
+        message: isFavorite ? 'Removed from favorites' : 'Added to favorites',
+        isFavorite: !isFavorite 
+    });
+});
+
 export {
     getUsers,
     getUserById,
     updateUser,
-    deleteUser
+    deleteUser,
+    getFavoriteBusinesses,
+    toggleFavoriteBusiness
 };

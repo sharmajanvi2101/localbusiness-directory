@@ -14,6 +14,8 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import cityRoutes from './routes/cityRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import businessRoutes from './routes/businessRoutes.js';
+import statsRoutes from './routes/statsRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 dotenv.config();
 
@@ -42,6 +44,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/cities', cityRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/businesses', businessRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is healthy' });

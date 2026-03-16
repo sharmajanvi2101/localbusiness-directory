@@ -16,6 +16,12 @@ const citySchema = new mongoose.Schema({
         type: String,
         required: [true, 'Please add a country name'],
         default: 'India'
+    },
+    lat: {
+        type: Number
+    },
+    lng: {
+        type: Number
     }
 }, {
     timestamps: true

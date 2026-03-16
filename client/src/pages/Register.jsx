@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
@@ -9,7 +9,12 @@ import authService from '../services/authService';
 
 const Register = () => {
     const [loading, setLoading] = useState(false);
-    const [selectedRole, setSelectedRole] = useState('customer');
+    const location = useLocation();
+    
+    // Default to 'owner' if coming from add-business, otherwise 'customer'
+    const isFromListing = location.state?.from === '/add-business';
+    const [selectedRole, setSelectedRole] = useState(isFromListing ? 'owner' : 'customer');
+    
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
@@ -20,11 +25,10 @@ const Register = () => {
         try {
             const payload = { ...data, role: selectedRole };
             const user = await authService.register(payload);
-            dispatch(setCredentials(user));
-            toast.success(`Welcome, ${user.name}`);
-            redirectBasedOnRole(user.role);
+            toast.success('Registration successful! Please login to continue.');
+            navigate('/login', { state: location.state });
         } catch (error) {
-            toast.error(error || 'Registration failed');
+            toast.error(error?.message || 'Registration failed');
         } finally {
             setLoading(false);
         }
@@ -48,18 +52,24 @@ const Register = () => {
                 </Link>
 
                 <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-stone-200">
-                    <h2 className="text-2xl font-bold text-stone-900 mb-2 text-center text-orange-600">Create Account</h2>
-                    <p className="text-stone-500 text-sm text-center mb-8">Join our community and explore business hubs</p>
+                    <h2 className="text-2xl font-bold text-stone-900 mb-2 text-center text-orange-600">
+                        {isFromListing ? 'Create Owner Account' : 'Create Account'}
+                    </h2>
+                    <p className="text-stone-500 text-sm text-center mb-8">
+                        {isFromListing ? 'Register to publish your business listing' : 'Join our community and explore business hubs'}
+                    </p>
 
                     {/* Simple Role Selector */}
                     <div className="flex p-1 bg-stone-100 rounded-2xl mb-8 border border-stone-200">
                         <button
+                            type="button"
                             onClick={() => setSelectedRole('customer')}
                             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${selectedRole === 'customer' ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
                         >
                             <Users size={16} /> Customer
                         </button>
                         <button
+                            type="button"
                             onClick={() => setSelectedRole('owner')}
                             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${selectedRole === 'owner' ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
                         >
@@ -134,14 +144,14 @@ const Register = () => {
                             disabled={loading}
                             className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all shadow-lg mt-4"
                         >
-                            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Sign Up"}
+                            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (isFromListing ? "Create Account & Publish" : "Sign Up")}
                         </button>
                     </form>
 
                     <div className="mt-8 pt-6 border-t border-stone-100 text-center">
                         <p className="text-stone-500 text-sm font-medium">
                             Already have an account? {' '}
-                            <Link to="/login" className="text-orange-600 font-bold hover:underline">
+                            <Link to="/login" state={location.state} className="text-orange-600 font-bold hover:underline">
                                 Sign in
                             </Link>
                         </p>

@@ -23,11 +23,13 @@ import {
     MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import businessService from '../services/businessService';
 import userService from '../services/userService';
 
 const SubAdminDashboard = () => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('businesses'); // businesses, reports, verification-docs
     const [businesses, setBusinesses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -50,7 +52,12 @@ const SubAdminDashboard = () => {
                 setBusinesses([]);
             }
         } catch (error) {
-            toast.error(`Failed to fetch ${activeTab}`);
+            if (typeof error === 'string' && error.toLowerCase().includes('not authorized')) {
+                toast.error('Access denied or permissions changed');
+                navigate('/');
+            } else {
+                toast.error(`Failed to fetch ${activeTab}`);
+            }
         } finally {
             setLoading(false);
         }

@@ -45,6 +45,13 @@ const businessSchema = new mongoose.Schema({
             'Please add a valid email'
         ]
     },
+    slug: {
+        type: String,
+        unique: true,
+        trim: true
+    },
+    logo: String,
+    coverImage: String,
     website: {
         type: String,
         match: [
@@ -82,7 +89,42 @@ const businessSchema = new mongoose.Schema({
         type: Map,
         of: String, // format: "09:00 - 18:00"
         default: {}
-    }
+    },
+    views: {
+        type: Number,
+        default: 0
+    },
+    // Premium Comparison & Differentiation Features
+    attributes: {
+        isWomenOwned: { type: Boolean, default: false },
+        isEcoFriendly: { type: Boolean, default: false },
+        hasParking: { type: Boolean, default: false },
+        isWifiAvailable: { type: Boolean, default: false }
+    },
+    deals: [{
+        title: { type: String, required: true },
+        description: { type: String },
+        discountCode: { type: String },
+        expiryDate: { type: Date }
+    }],
+    services: [{
+        name: { type: String, required: true },
+        price: { type: Number, required: true },
+        duration: { type: String }, // e.g. "45 mins"
+        description: { type: String }
+    }],
+    portfolio: [{
+        image: { type: String, required: true },
+        title: { type: String },
+        description: { type: String }
+    }],
+    announcements: [{
+        title: { type: String, required: true },
+        content: { type: String, required: true },
+        discountCode: { type: String },
+        expiryDate: { type: Date },
+        createdAt: { type: Date, default: Date.now }
+    }]
 }, {
     timestamps: true
 });

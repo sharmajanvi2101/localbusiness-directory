@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
@@ -11,6 +11,7 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const { register, handleSubmit, formState: { errors } } = useForm();
 
@@ -20,9 +21,19 @@ const Login = () => {
             const user = await authService.login(data);
             dispatch(setCredentials(user));
             toast.success(`Welcome back, ${user.name}`);
-            redirectBasedOnRole(user.role);
+            
+            // Redirect based on role (prioritizing admins) or previous location
+            const from = location.state?.from;
+            
+            if (user.role === 'admin' || user.role === 'subadmin') {
+                redirectBasedOnRole(user.role);
+            } else if (from) {
+                navigate(from, { state: location.state });
+            } else {
+                redirectBasedOnRole(user.role);
+            }
         } catch (error) {
-            toast.error(error || 'Failed to login');
+            toast.error(error?.message || 'Failed to login');
         } finally {
             setLoading(false);
         }
@@ -89,7 +100,7 @@ const Login = () => {
                     <div className="mt-8 pt-6 border-t border-stone-100 text-center">
                         <p className="text-stone-500 text-sm font-medium">
                             Don't have an account? {' '}
-                            <Link to="/register" className="text-orange-600 font-bold hover:underline">
+                            <Link to="/register" state={{ from: location.state?.from }} className="text-orange-600 font-bold hover:underline">
                                 Sign up now
                             </Link>
                         </p>

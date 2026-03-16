@@ -52,7 +52,7 @@ const OwnerDashboard = () => {
 
     const stats = [
         { label: 'Total Listings', value: businesses.length, icon: Store, bg: 'bg-orange-50', color: 'text-orange-600' },
-        { label: 'Avg Rating', value: businesses.length > 0 ? (businesses.reduce((acc, curr) => acc + (curr.averageRating || 0), 0) / businesses.length).toFixed(1) : 0, icon: Star, bg: 'bg-amber-50', color: 'text-amber-600' },
+        { label: 'Total Views', value: businesses.reduce((acc, curr) => acc + (curr.views || 0), 0), icon: Eye, bg: 'bg-indigo-50', color: 'text-indigo-600' },
         { label: 'Verified', value: businesses.filter(b => b.isVerified).length, icon: ShieldCheck, bg: 'bg-green-50', color: 'text-green-600' },
         { label: 'Total Reviews', value: businesses.reduce((acc, curr) => acc + (curr.reviewCount || 0), 0), icon: MessageCircle, bg: 'bg-blue-50', color: 'text-blue-600' },
     ];
@@ -163,9 +163,9 @@ const OwnerDashboard = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <Link to={`/business/${biz._id}`} className="p-3 rounded-xl bg-white border border-stone-100 text-stone-400 hover:text-orange-600 hover:border-orange-200 transition-all shadow-sm">
-                                                    <ChevronRight size={18} />
-                                                </Link>
+                                                 <Link to={biz.slug ? `/store/${biz.slug}` : `/business/${biz._id}`} className="p-3 rounded-xl bg-white border border-stone-100 text-stone-400 hover:text-orange-600 hover:border-orange-200 transition-all shadow-sm">
+                                                     <ChevronRight size={18} />
+                                                 </Link>
                                             </div>
                                         ))}
                                     </div>
@@ -238,9 +238,14 @@ const OwnerDashboard = () => {
                                                     <span className="font-bold text-stone-700 text-xs">{biz.averageRating?.toFixed(1) || '0.0'}</span>
                                                 </div>
                                             </div>
-                                            <Link to={`/business/${biz._id}`} className="px-4 py-2 bg-stone-50 text-stone-600 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-stone-900 hover:text-white transition-all">
-                                                View Live
-                                            </Link>
+                                            <div className="flex flex-wrap items-center gap-2 pt-6 border-t border-stone-50">
+                                                <Link to={`/business/builder/${biz._id}`} className="flex-1 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all text-center flex items-center justify-center gap-2 shadow-lg shadow-indigo-100">
+                                                    <Layout size={14} /> Launch Studio
+                                                </Link>
+                                                 <Link to={biz.slug ? `/store/${biz.slug}` : `/business/${biz._id}`} className="px-4 py-3 bg-stone-50 text-stone-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-stone-900 hover:text-white transition-all text-center">
+                                                     View Live
+                                                 </Link>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -249,11 +254,68 @@ const OwnerDashboard = () => {
                     </motion.div>
                 )}
 
-                {(activeTab === 'analytics' || activeTab === 'reviews') && (
+                {activeTab === 'analytics' && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
+                        <div className="bg-white rounded-[3rem] p-10 border border-stone-100 shadow-sm">
+                            <h3 className="text-xl font-black text-stone-900 mb-8 flex items-center gap-3">
+                                <BarChart3 size={22} className="text-indigo-600" /> Business Performance
+                            </h3>
+                            
+                            {businesses.length === 0 ? (
+                                <div className="text-center py-20 bg-stone-50 rounded-[2rem]">
+                                    <p className="text-stone-400 font-bold italic">Add a business to see analytics.</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="text-[10px] font-black uppercase tracking-widest text-stone-400 border-b border-stone-50">
+                                                <th className="pb-4 px-4 font-black">Business Name</th>
+                                                <th className="pb-4 px-4 font-black">Total Views</th>
+                                                <th className="pb-4 px-4 font-black">Reviews</th>
+                                                <th className="pb-4 px-4 font-black">Rating</th>
+                                                <th className="pb-4 px-4 font-black text-right">Boosted Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-stone-50">
+                                            {businesses.map(biz => (
+                                                <tr key={biz._id} className="group hover:bg-stone-50/50 transition-colors">
+                                                    <td className="py-5 px-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs">
+                                                                {biz.name.charAt(0)}
+                                                            </div>
+                                                            <span className="font-bold text-stone-900">{biz.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-5 px-4 font-black text-stone-900">{biz.views || 0}</td>
+                                                    <td className="py-5 px-4 font-bold text-stone-500">{biz.reviewCount || 0}</td>
+                                                    <td className="py-5 px-4">
+                                                        <div className="flex items-center gap-1.5 text-amber-500">
+                                                            <Star size={14} fill="currentColor" />
+                                                            <span className="font-bold text-stone-900">{biz.averageRating?.toFixed(1) || '0.0'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-5 px-4 text-right">
+                                                        <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">
+                                                            Normal
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+
+                {activeTab === 'reviews' && (
                     <div className="py-24 text-center bg-white rounded-[3rem] border border-dashed border-stone-200">
-                        <div className="text-5xl mb-6">📊</div>
-                        <h3 className="text-xl font-black text-stone-900 mb-2">Deep Insights Coming Soon</h3>
-                        <p className="text-stone-400 font-medium italic max-w-xs mx-auto">We're building a powerful engine to show you detailed metrics and customer sentiments.</p>
+                        <div className="text-5xl mb-6">💬</div>
+                        <h3 className="text-xl font-black text-stone-900 mb-2">Customer Reviews Insights Coming Soon</h3>
+                        <p className="text-stone-400 font-medium italic max-w-xs mx-auto">We're building a centralized system to manage all your customer feedback.</p>
                     </div>
                 )}
             </div>

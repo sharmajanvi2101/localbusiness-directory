@@ -19,8 +19,14 @@ const authSlice = createSlice({
             state.isAuthenticated = false;
             localStorage.removeItem('user');
         },
+        updateFavorites(state, action) {
+            if (state.user) {
+                state.user.favorites = action.payload;
+                localStorage.setItem('user', JSON.stringify(state.user));
+            }
+        },
     },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, logout, updateFavorites } = authSlice.actions;
 export default authSlice.reducer;
