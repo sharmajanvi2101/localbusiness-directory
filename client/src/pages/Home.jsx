@@ -4,7 +4,8 @@ import {
     Search, MapPin, Star, ArrowRight, ChevronRight,
     ShieldCheck, TrendingUp, Users, Building2,
     Phone, LocateFixed, Loader2, Navigation2,
-    BadgeCheck, CheckCircle2, Heart, ArrowLeftRight, X
+    BadgeCheck, CheckCircle2, Heart, ArrowLeftRight, X,
+    Rocket, Tag
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateFavorites } from '../store/slices/authSlice';

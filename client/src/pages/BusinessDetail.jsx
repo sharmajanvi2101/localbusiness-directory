@@ -4,7 +4,7 @@ import {
     MapPin, Phone, Globe, Mail, Clock, Star,
     ShieldCheck, Share2, Heart, MessageSquare,
     ChevronRight, Info, Briefcase, Navigation, ExternalLink, Utensils, ShoppingBag, Zap, Droplets, Stethoscope, Dumbbell,
-    Leaf, Award, Tag, CalendarCheck, Check, ArrowLeftRight
+    Leaf, Award, Tag, CalendarCheck, Check, ArrowLeftRight, Rocket
 } from 'lucide-react';
 import businessService from '../services/businessService';
 import { toast } from 'react-hot-toast';
