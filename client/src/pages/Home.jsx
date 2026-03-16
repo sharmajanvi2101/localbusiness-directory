@@ -772,10 +772,10 @@ const Home = () => {
                             </div>
                             <h2 className="text-4xl md:text-5xl font-black text-stone-900 mb-5 leading-tight">
                                 Discover Businesses<br />
-                                <span className="premium-gradient-text">in {searchCity || userLocation?.cityName || 'Palanpur'}</span>
+                                <span className="premium-gradient-text">in {searchCity || 'Palanpur'}</span>
                             </h2>
                             <p className="text-stone-500 text-lg leading-relaxed mb-8 max-w-lg">
-                                Explore {platformStats.businesses}+ verified restaurants, hospitals, electricians, gyms, and more in {searchCity || userLocation?.cityName || 'Palanpur'}.
+                                Explore {platformStats.businesses}+ verified restaurants, hospitals, electricians, gyms, and more in {searchCity || 'Palanpur'}.
                             </p>
                             <div className="flex flex-wrap gap-3 mb-8">
                                 {['Restaurants', 'Doctor', 'Gym', 'Electrician'].map(cat => (
