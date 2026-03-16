@@ -458,6 +458,11 @@ const BusinessWebsite = () => {
             <footer className="bg-stone-50 py-12 border-t border-stone-100">
                 <div className="container mx-auto px-6 text-center">
                     <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Powered by BizDirect Premium • Mini Site v2.0</p>
+                    <div className="mt-4">
+                        <Link to={`/business/${biz._id}?noredirect=true`} className="text-stone-400 hover:text-primary-600 text-[10px] font-black uppercase tracking-widest transition-colors">
+                            View Directory Profile
+                        </Link>
+                    </div>
                 </div>
             </footer>
 

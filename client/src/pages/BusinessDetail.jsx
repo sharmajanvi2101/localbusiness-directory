@@ -264,6 +264,15 @@ const BusinessDetail = () => {
                                     <Phone size={20} />
                                     <span className="font-black italic uppercase tracking-tighter">Call Now</span>
                                 </a>
+                                {business.slug && (
+                                    <Link
+                                        to={`/b/${business.slug}`}
+                                        className="px-6 md:px-8 py-3.5 md:py-4 bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl md:rounded-3xl text-white hover:bg-white/30 transition-all flex items-center gap-3"
+                                    >
+                                        <Rocket size={20} />
+                                        <span className="font-black italic uppercase tracking-tighter">View Store</span>
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -554,6 +563,16 @@ const BusinessDetail = () => {
                                     <span className="font-black italic uppercase tracking-tighter">Navigate There</span>
                                     <ExternalLink size={14} className="opacity-40" />
                                 </a>
+
+                                {business.slug && (
+                                    <Link
+                                        to={`/b/${business.slug}`}
+                                        className="w-full py-4 bg-stone-900 text-white rounded-xl flex items-center justify-center gap-3 hover:bg-stone-800 transition-all shadow-lg mb-4"
+                                    >
+                                        <Rocket size={18} />
+                                        <span className="font-black italic uppercase tracking-tighter">Visit Digital Store</span>
+                                    </Link>
+                                )}
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <button 

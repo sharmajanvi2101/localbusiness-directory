@@ -62,8 +62,15 @@ const SearchBusinessCard = ({ biz, viewMode, onCompare, isSelected }) => {
                 <div className="pt-4 border-t border-orange-50 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-1.5 text-stone-400 text-[10px] font-bold uppercase tracking-widest"><MapPin size={14} className="text-primary-500" />{biz.city?.name}</div>
                     <div className="flex items-center gap-4">
-                        <Link to={biz.slug ? `/b/${biz.slug}` : `/business/${biz._id}`} className="btn btn-primary px-4 py-2 text-[10px] flex items-center gap-2">
-                             {biz.slug ? 'Digital Store' : 'View Details'} <ExternalLink size={14} />
+                        <Link 
+                            to={biz.slug ? `/b/${biz.slug}` : `/business/${biz._id}`} 
+                            className="btn btn-primary px-4 py-2 text-[10px] flex items-center gap-2"
+                        >
+                             {biz.slug ? (
+                                 <>Digital Store <Rocket size={14} /></>
+                             ) : (
+                                 <>View Details <ChevronRight size={14} /></>
+                             )}
                         </Link>
                         {biz.slug && (
                             <Link to={`/business/${biz._id}?noredirect=true`} className="text-[10px] font-black text-stone-400 hover:text-primary-600 uppercase tracking-widest transition-colors border-l border-stone-200 ml-1 pl-3">
