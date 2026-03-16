@@ -724,7 +724,7 @@ const Home = () => {
                                 ...(searchCity ? { city: searchCity } : {}),
                                 ...(userLocation?.lat ? { lat: userLocation.lat, lng: userLocation.lng } : {})
                             }).toString()}`} className="btn btn-primary text-xs shine-effect self-start py-2.5">
-                                Browse All in {searchCity || userLocation?.cityName || 'India'} <ArrowRight size={14} />
+                                Browse All in {searchCity || 'Palanpur'} <ArrowRight size={14} />
                             </Link>
                         </div>
                     </SectionHeader>
@@ -779,7 +779,7 @@ const Home = () => {
                             </p>
                             <div className="flex flex-wrap gap-3 mb-8">
                                 {['Restaurants', 'Doctor', 'Gym', 'Electrician'].map(cat => (
-                                    <Link key={cat} to={`/search?city=${encodeURIComponent(searchCity || userLocation?.cityName || 'Palanpur')}&category=${cat}`}
+                                    <Link key={cat} to={`/search?city=${encodeURIComponent(searchCity || 'Palanpur')}&category=${cat}`}
                                         className="category-chip">
                                         {CATEGORY_META[cat]?.emoji} {cat}
                                     </Link>
@@ -796,7 +796,7 @@ const Home = () => {
                                     { name: 'PowerZone Fitness', cat: 'Gym', rating: 4.7, emoji: '💪', img: GYM_IMG },
                                     { name: 'Bhavani Electricals', cat: 'Electrician', rating: 4.7, emoji: '⚡', img: ELECTRICIAN_IMG },
                                 ].map(({ name, cat, rating, emoji, img }) => (
-                                    <Link key={name} to={`/search?city=${encodeURIComponent(searchCity || userLocation?.cityName || 'Palanpur')}&search=${encodeURIComponent(name)}`} className="market-card group overflow-hidden block">
+                                    <Link key={name} to={`/search?city=${encodeURIComponent(searchCity || 'Palanpur')}&search=${encodeURIComponent(name)}`} className="market-card group overflow-hidden block">
                                         <div className="h-24 relative overflow-hidden">
                                             <img src={img} alt={name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                             <div className="absolute inset-0 bg-black/20" />
