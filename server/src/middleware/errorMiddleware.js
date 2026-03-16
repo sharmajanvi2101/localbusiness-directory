@@ -5,7 +5,16 @@ const notFound = (req, res, next) => {
 };
 
 const errorHandler = (err, req, res, next) => {
-    console.error('SERVER ERROR:', err);
+    // Log error details for server-side debugging
+    console.error(`[${new Date().toISOString()}] SERVER ERROR:`, {
+        message: err.message,
+        stack: err.stack,
+        path: req.originalUrl,
+        method: req.method,
+        body: req.body,
+        user: req.user ? req.user._id : 'Anonymous'
+    });
+
     let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
     let message = err.message;
 

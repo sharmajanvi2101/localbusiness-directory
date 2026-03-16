@@ -1,11 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import mongoose from 'mongoose';
 import connectDB from './config/db.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
@@ -17,7 +19,8 @@ import businessRoutes from './routes/businessRoutes.js';
 import statsRoutes from './routes/statsRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 
-dotenv.config();
+// Initialized at top of file
+
 
 const app = express();
 
@@ -51,7 +54,13 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/reviews', reviewRoutes);
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Server is healthy' });
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+  res.status(200).json({ 
+    status: 'OK', 
+    database: dbStatus,
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
 const __filename = fileURLToPath(import.meta.url);
@@ -75,7 +84,17 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  connectDB();
-  console.log(`🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-});
+// Connect to Database and then start server
+const startServer = async () => {
+    try {
+        await connectDB();
+        app.listen(PORT, () => {
+            console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error(`❌ Failed to start server: ${error.message}`);
+        process.exit(1);
+    }
+};
+
+startServer();
