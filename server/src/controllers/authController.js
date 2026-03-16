@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import generateToken from '../utils/generateToken.js';
 
@@ -46,11 +47,18 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
+    console.time('Login Process');
 
-    const user = await User.findOne({ email }).select('+password');
+    console.time('DB Query');
+    const user = await User.findOne({ email }).select('+password').lean();
+    console.timeEnd('DB Query');
 
-    if (user && (await user.matchPassword(password))) {
+    if (user && (await bcrypt.compare(password, user.password))) {
+        console.time('Token Generation');
         generateToken(res, user._id);
+        console.timeEnd('Token Generation');
+
+        console.timeEnd('Login Process');
         res.status(200).json({
             _id: user._id,
             name: user.name,
@@ -60,6 +68,7 @@ const loginUser = asyncHandler(async (req, res) => {
             favorites: user.favorites || []
         });
     } else {
+        console.timeEnd('Login Process');
         res.status(401);
         throw new Error('Invalid email or password');
     }
