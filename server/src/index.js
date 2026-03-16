@@ -25,7 +25,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 const app = express();
 
 // Security Middleware
-app.use(helmet());
+
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -33,6 +33,7 @@ app.use(cors({
   ],
   credentials: true
 }));
+app.use(helmet());
 
 // Body Parser Middleware
 app.use(express.json());
