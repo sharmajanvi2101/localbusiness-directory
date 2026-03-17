@@ -1,8 +1,21 @@
+# dependencies
 node_modules/
-.env
+
+# frontend build
 dist/
 build/
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+
+# env files
+.env
+.env.*
+
+# logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
