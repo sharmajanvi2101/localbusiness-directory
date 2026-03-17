@@ -1,6 +1,8 @@
-node_modules
+node_modules/
 .env
+dist/
+build/
 .env.local
-.DS_Store
-dist
-build
+.env.development.local
+.env.test.local
+.env.production.local
