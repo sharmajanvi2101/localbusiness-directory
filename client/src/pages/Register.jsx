@@ -3,12 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
-import { Mail, Lock, User, Phone, Briefcase, Users, MapPin } from 'lucide-react';
+import { Mail, Lock, User, Phone, Briefcase, Users, MapPin, Eye, EyeOff } from 'lucide-react';
 import { setCredentials } from '../store/slices/authSlice';
 import authService from '../services/authService';
 
 const Register = () => {
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const location = useLocation();
     
     // Default to 'owner' if coming from add-business, otherwise 'customer'
@@ -28,7 +30,7 @@ const Register = () => {
             toast.success('Registration successful! Please login to continue.');
             navigate('/login', { state: location.state });
         } catch (error) {
-            toast.error(error?.message || 'Registration failed');
+            toast.error(error || 'Registration failed');
         } finally {
             setLoading(false);
         }
@@ -118,24 +120,42 @@ const Register = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-stone-600 uppercase tracking-wider ml-1">Password</label>
-                                <input
-                                    {...register('password', { required: true, minLength: 6 })}
-                                    type="password"
-                                    className={`w-full bg-stone-50 border-stone-200 px-6 py-3 rounded-2xl outline-none focus:bg-white focus:border-orange-500 transition-all font-medium text-stone-800 ${errors.password ? 'border-red-500' : 'border'}`}
-                                    placeholder="••••••••"
-                                />
+                                <div className="relative group">
+                                    <input
+                                        {...register('password', { required: true, minLength: 6 })}
+                                        type={showPassword ? "text" : "password"}
+                                        className={`w-full bg-stone-50 border-stone-200 pl-6 pr-12 py-3 rounded-2xl outline-none focus:bg-white focus:border-orange-500 transition-all font-medium text-stone-800 ${errors.password ? 'border-red-500' : 'border'}`}
+                                        placeholder="••••••••"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-orange-600 transition-colors z-10"
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-stone-600 uppercase tracking-wider ml-1">Confirm</label>
-                                <input
-                                    {...register('confirmPassword', { 
-                                        required: true, 
-                                        validate: (val) => watch('password') === val 
-                                    })}
-                                    type="password"
-                                    className={`w-full bg-stone-50 border-stone-200 px-6 py-3 rounded-2xl outline-none focus:bg-white focus:border-orange-500 transition-all font-medium text-stone-800 ${errors.confirmPassword ? 'border-red-500' : 'border'}`}
-                                    placeholder="••••••••"
-                                />
+                                <label className="text-xs font-bold text-stone-600 uppercase tracking-wider ml-1">Confirm Password</label>
+                                <div className="relative group">
+                                    <input
+                                        {...register('confirmPassword', { 
+                                            required: true, 
+                                            validate: (val) => watch('password') === val 
+                                        })}
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        className={`w-full bg-stone-50 border-stone-200 pl-6 pr-12 py-3 rounded-2xl outline-none focus:bg-white focus:border-orange-500 transition-all font-medium text-stone-800 ${errors.confirmPassword ? 'border-red-500' : 'border'}`}
+                                        placeholder="••••••••"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-orange-600 transition-colors z-10"
+                                    >
+                                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

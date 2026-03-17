@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
-import { Mail, Lock, ArrowRight, MapPin } from 'lucide-react';
+import { Mail, Lock, ArrowRight, MapPin, Eye, EyeOff } from 'lucide-react';
 import { setCredentials } from '../store/slices/authSlice';
 import authService from '../services/authService';
 
 const Login = () => {
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const location = useLocation();
@@ -33,7 +34,7 @@ const Login = () => {
                 redirectBasedOnRole(user.role);
             }
         } catch (error) {
-            toast.error(error?.message || 'Failed to login');
+            toast.error(error || 'Failed to login');
         } finally {
             setLoading(false);
         }
@@ -81,10 +82,17 @@ const Login = () => {
                                 <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-orange-600 transition-colors z-10" size={18} />
                                 <input
                                     {...register('password', { required: true })}
-                                    type="password"
-                                    className={`w-full bg-stone-50 border-stone-200 !pl-14 pr-4 py-3.5 rounded-2xl outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all font-medium text-stone-800 ${errors.password ? 'border-red-500' : 'border'}`}
+                                    type={showPassword ? "text" : "password"}
+                                    className={`w-full bg-stone-50 border-stone-200 !pl-14 pr-12 py-3.5 rounded-2xl outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all font-medium text-stone-800 ${errors.password ? 'border-red-500' : 'border'}`}
                                     placeholder="••••••••"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-orange-600 transition-colors z-10"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
 

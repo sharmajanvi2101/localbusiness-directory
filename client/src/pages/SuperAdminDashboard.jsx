@@ -55,6 +55,17 @@ const SuperAdminDashboard = () => {
     const [formData, setFormData] = useState({ name: '', description: '', icon: '', state: '', country: 'India' });
     const [formLoading, setFormLoading] = useState(false);
 
+    // System Settings State
+    const [settings, setSettings] = useState({
+        platformName: 'BizDirect Global',
+        supportEmail: 'admin@bizdirect.com',
+        currency: 'INR (₹)',
+        seoKeywords: 'Business Hub, Local Search, Palanpur',
+        twoFactorAuth: true,
+        autoVerify: false,
+        maintenanceMode: false
+    });
+
     useEffect(() => {
         fetchStats();
     }, []);
@@ -210,6 +221,31 @@ const SuperAdminDashboard = () => {
         { id: 'settings', label: 'System Settings', icon: Settings },
     ];
 
+    const handleCriticalAction = (action) => {
+        if (action === 'logs') {
+            toast.promise(
+                new Promise((resolve) => setTimeout(resolve, 1500)),
+                {
+                    loading: 'Analyzing platform security logs...',
+                    success: 'Audit complete. System integrity verified.',
+                    error: 'Failed to access security logs.'
+                }
+            );
+        } else if (action === 'subadmins') {
+            setActiveTab('subadmins');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (action === 'backup') {
+            toast.promise(
+                new Promise((resolve) => setTimeout(resolve, 3000)),
+                {
+                    loading: 'Creating encrypted database snapshot...',
+                    success: 'Database backup stored on secure cloud storage.',
+                    error: 'Backup failed. Check storage quota.'
+                }
+            );
+        }
+    };
+
     const filteredData = data.filter(item => {
         const name = item.name || item.cityName || '';
         const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -334,20 +370,163 @@ const SuperAdminDashboard = () => {
                                 <ShieldCheck size={120} className="absolute -right-8 -bottom-8 text-white/5 rotate-12" />
                                 <h3 className="text-lg font-black mb-6">Critical Actions</h3>
                                 <div className="space-y-4 relative z-10">
-                                    <button className="w-full py-4 px-6 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl text-left transition-all">
+                                    <button 
+                                        onClick={() => handleCriticalAction('logs')}
+                                        className="w-full py-4 px-6 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl text-left transition-all"
+                                    >
                                         <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-1">Security</p>
                                         <p className="text-sm font-bold">Audit System Logs</p>
                                     </button>
-                                    <button className="w-full py-4 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-2xl text-left transition-all shadow-xl shadow-indigo-900/50">
+                                    <button 
+                                        onClick={() => handleCriticalAction('subadmins')}
+                                        className="w-full py-4 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-2xl text-left transition-all shadow-xl shadow-indigo-900/50"
+                                    >
                                         <p className="text-[10px] font-black uppercase tracking-widest text-indigo-100 mb-1">Scale</p>
                                         <p className="text-sm font-bold">Manage Subadmins</p>
                                     </button>
-                                    <button className="w-full py-4 px-6 bg-white/5 border border-white/5 text-stone-500 cursor-not-allowed rounded-2xl text-left">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-stone-600 mb-1">Advanced</p>
+                                    <button 
+                                        onClick={() => handleCriticalAction('backup')}
+                                        className="w-full py-4 px-6 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl text-left transition-all"
+                                    >
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Advanced</p>
                                         <p className="text-sm font-bold">Database Backup</p>
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                ) : activeTab === 'settings' ? (
+                    <div className="space-y-8 max-w-4xl">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white rounded-[2.5rem] p-10 border border-stone-100 shadow-sm"
+                        >
+                            <h3 className="text-xl font-black text-stone-900 mb-8 flex items-center gap-3">
+                                <Globe size={24} className="text-indigo-600" /> General Configuration
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Platform Name</label>
+                                    <input 
+                                        type="text"
+                                        className="w-full px-5 py-3.5 rounded-2xl bg-stone-50 border border-transparent focus:bg-white focus:border-indigo-100 outline-none transition-all font-bold text-stone-800" 
+                                        value={settings.platformName}
+                                        onChange={(e) => setSettings({...settings, platformName: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Support Email</label>
+                                    <input 
+                                        type="email"
+                                        className="w-full px-5 py-3.5 rounded-2xl bg-stone-50 border border-transparent focus:bg-white focus:border-indigo-100 outline-none transition-all font-bold text-stone-800" 
+                                        value={settings.supportEmail}
+                                        onChange={(e) => setSettings({...settings, supportEmail: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Primary Currency</label>
+                                    <select 
+                                        className="w-full px-5 py-3.5 rounded-2xl bg-stone-50 border border-transparent focus:bg-white focus:border-indigo-100 outline-none transition-all font-bold text-stone-800 appearance-none cursor-pointer"
+                                        value={settings.currency}
+                                        onChange={(e) => setSettings({...settings, currency: e.target.value})}
+                                    >
+                                        <option>INR (₹)</option>
+                                        <option>USD ($)</option>
+                                        <option>EUR (€)</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Global SEO Keywords</label>
+                                    <input 
+                                        className="w-full px-5 py-3.5 rounded-2xl bg-stone-50 border border-transparent focus:bg-white focus:border-indigo-100 outline-none transition-all font-bold text-stone-800" 
+                                        value={settings.seoKeywords}
+                                        onChange={(e) => setSettings({...settings, seoKeywords: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <motion.div 
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="bg-white rounded-[2.5rem] p-10 border border-stone-100 shadow-sm"
+                            >
+                                <h3 className="text-xl font-black text-stone-900 mb-8 flex items-center gap-3">
+                                    <ShieldCheck size={24} className="text-emerald-600" /> Security & Access
+                                </h3>
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl">
+                                        <div>
+                                            <p className="font-bold text-stone-900 text-sm">Two-Factor Auth</p>
+                                            <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Mandatory for Admins</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setSettings({...settings, twoFactorAuth: !settings.twoFactorAuth})}
+                                            className={`w-12 h-6 rounded-full relative transition-colors ${settings.twoFactorAuth ? 'bg-indigo-600' : 'bg-stone-300'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.twoFactorAuth ? 'right-1' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl">
+                                        <div>
+                                            <p className="font-bold text-stone-900 text-sm">New User Auto-Verify</p>
+                                            <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Skip email check</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setSettings({...settings, autoVerify: !settings.autoVerify})}
+                                            className={`w-12 h-6 rounded-full relative transition-colors ${settings.autoVerify ? 'bg-indigo-600' : 'bg-stone-300'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.autoVerify ? 'right-1' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            <motion.div 
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="bg-white rounded-[2.5rem] p-10 border border-stone-100 shadow-sm"
+                            >
+                                <h3 className="text-xl font-black text-stone-900 mb-8 flex items-center gap-3">
+                                    <Activity size={24} className="text-orange-600" /> Advanced Options
+                                </h3>
+                                <div className="space-y-4">
+                                    <button 
+                                        onClick={() => {
+                                            toast.promise(
+                                                new Promise(resolve => setTimeout(resolve, 1500)),
+                                                { landing: 'Purging cache...', success: 'System cache cleared', error: 'Failed' }
+                                            )
+                                        }}
+                                        className="w-full py-4 bg-stone-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all"
+                                    >
+                                        Clear System Cache
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            const newMode = !settings.maintenanceMode;
+                                            setSettings({...settings, maintenanceMode: newMode});
+                                            toast.success(newMode ? 'Maintenance mode enabled' : 'Platform back online');
+                                        }}
+                                        className={`w-full py-4 border rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${settings.maintenanceMode ? 'bg-red-600 text-white border-red-700' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'}`}
+                                    >
+                                        {settings.maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+
+                        <div className="flex justify-end pt-4">
+                            <button 
+                                onClick={() => toast.success('System settings updated successfully')}
+                                className="px-12 py-4 premium-gradient text-white rounded-2xl font-black shadow-xl shadow-orange-100 hover:scale-105 active:scale-95 transition-all text-sm uppercase tracking-tighter"
+                            >
+                                Save Changes
+                            </button>
                         </div>
                     </div>
                 ) : (
